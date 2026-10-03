@@ -1,0 +1,168 @@
+{
+ "actions": [],
+ "autoname": "field:intent_key",
+ "creation": "2026-10-03 00:00:00.000000",
+ "description": "Write-ahead nonce journal: one row per on-chain intent, written before signing.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "intent_key",
+  "status",
+  "reference_doctype",
+  "reference_name",
+  "column_break_1",
+  "from_address",
+  "to_address",
+  "nonce",
+  "gas",
+  "max_fee_per_gas",
+  "max_priority_fee_per_gas",
+  "section_tx",
+  "hashes",
+  "mined_hash",
+  "block_number",
+  "error",
+  "calldata"
+ ],
+ "fields": [
+  {
+   "fieldname": "intent_key",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Intent Key",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Signing\nSent\nMined\nReverted\nStuck\nFailed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Reference DocType",
+   "options": "DocType",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "Reference Name",
+   "options": "reference_doctype",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "from_address",
+   "fieldtype": "Data",
+   "label": "From",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "to_address",
+   "fieldtype": "Data",
+   "label": "To",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nonce",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Nonce",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gas",
+   "fieldtype": "Data",
+   "label": "Gas Limit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "max_fee_per_gas",
+   "fieldtype": "Data",
+   "label": "Max Fee Per Gas (wei)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "max_priority_fee_per_gas",
+   "fieldtype": "Data",
+   "label": "Max Priority Fee Per Gas (wei)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_tx",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "hashes",
+   "fieldtype": "Code",
+   "label": "Broadcast Hashes (oldest first; replacements append)",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "mined_hash",
+   "fieldtype": "Data",
+   "label": "Mined Hash",
+   "read_only": 1
+  },
+  {
+   "fieldname": "block_number",
+   "fieldtype": "Int",
+   "label": "Block",
+   "read_only": 1
+  },
+  {
+   "fieldname": "error",
+   "fieldtype": "Small Text",
+   "label": "Error",
+   "read_only": 1
+  },
+  {
+   "fieldname": "calldata",
+   "fieldtype": "Code",
+   "label": "Calldata",
+   "read_only": 1
+  }
+ ],
+ "in_create": 1,
+ "links": [],
+ "modified": "2026-10-03 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Symbolon",
+ "name": "Symbolon Intent",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 0,
+   "delete": 0,
+   "export": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "write": 0
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Accounts Manager"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "intent_key",
+ "track_changes": 1
+}

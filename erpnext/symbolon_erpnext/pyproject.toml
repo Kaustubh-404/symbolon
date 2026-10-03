@@ -1,0 +1,30 @@
+[project]
+name = "symbolon_erpnext"
+authors = [{ name = "Symbolon" }]
+description = "Register approved ERPNext bills and payroll as obligations on Symbolon (USDC on Arc), with dry run and per-row idempotency"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+dynamic = ["version"]
+dependencies = [
+    # web3 6.x and 7.x both work (chain.py avoids the APIs that changed). Frappe v15 pins its own deps; pip resolves.
+    "web3>=6.20,<8",
+]
+
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.bench.frappe-dependencies]
+frappe = ">=15.0.0,<16.0.0"
+erpnext = ">=15.0.0,<16.0.0"
+
+[tool.pytest.ini_options]
+testpaths = ["symbolon_erpnext/tests"]
+python_files = ["test_pure_*.py"]
+
+[tool.ruff]
+line-length = 120
+indent-width = 4
+
+[tool.ruff.format]
+indent-style = "tab"

@@ -1,0 +1,153 @@
+# Local ERPNext v15 + Symbolon app. Adapted from frappe_docker's pwd.yml (single-host "play with docker" stack).
+#   docker compose -f erpnext/docker/compose.yml up -d --build
+#   open http://localhost:8090  (Administrator / admin)
+# The app source is bind-mounted over the baked copy, so Python edits apply after `docker compose restart backend
+# queue-short queue-long scheduler` (no rebuild).
+name: symbolon-erpnext
+
+x-image: &image
+  image: symbolon/erpnext:v15
+  pull_policy: never
+
+x-backend: &backend
+  <<: *image
+  volumes:
+    - sites:/home/frappe/frappe-bench/sites
+    - ../symbolon_erpnext:/home/frappe/frappe-bench/apps/symbolon_erpnext
+  environment:
+    # Optional: approver key for live sends. Leave unset for dry-run-only use. NEVER commit it.
+    SYMBOLON_APPROVER_PRIVATE_KEY: ${SYMBOLON_APPROVER_PRIVATE_KEY:-}
+  depends_on:
+    configurator:
+      condition: service_completed_successfully
+
+services:
+  build-image:
+    <<: *image
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        BASE: ${ERPNEXT_BASE_IMAGE:-ghcr.io/frappe/hrms:version-15}
+    entrypoint: ["true"]
+    restart: "no"
+
+  configurator:
+    <<: *image
+    entrypoint: ["bash", "-c"]
+    command:
+      - >
+        ls -1 apps > sites/apps.txt;
+        bench set-config -g db_host db;
+        bench set-config -gp db_port 3306;
+        bench set-config -g redis_cache "redis://redis-cache:6379";
+        bench set-config -g redis_queue "redis://redis-queue:6379";
+        bench set-config -g redis_socketio "redis://redis-queue:6379";
+        bench set-config -gp socketio_port 9000;
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - ../symbolon_erpnext:/home/frappe/frappe-bench/apps/symbolon_erpnext
+    depends_on:
+      build-image:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      redis-cache:
+        condition: service_started
+      redis-queue:
+        condition: service_started
+    restart: "no"
+
+  create-site:
+    <<: *backend
+    entrypoint: ["bash", "-c"]
+    command:
+      - >
+        wait-for-it -t 120 db:3306;
+        wait-for-it -t 120 redis-cache:6379;
+        wait-for-it -t 120 redis-queue:6379;
+        if [ ! -d sites/symbolon.localhost ]; then
+          bench new-site symbolon.localhost --mariadb-user-host-login-scope='%' --admin-password=admin
+          --db-root-username=root --db-root-password=admin --install-app erpnext --set-default;
+          for app in $$(ls -1 apps); do
+            if [ "$$app" = hrms ]; then bench --site symbolon.localhost install-app hrms; fi;
+          done;
+          bench --site symbolon.localhost install-app symbolon_erpnext;
+          bench --site symbolon.localhost set-config developer_mode 1;
+          bench --site symbolon.localhost enable-scheduler;
+        else
+          bench --site symbolon.localhost migrate;
+        fi
+    restart: "no"
+
+  backend:
+    <<: *backend
+    depends_on:
+      create-site:
+        condition: service_completed_successfully
+
+  frontend:
+    <<: *image
+    command: ["nginx-entrypoint.sh"]
+    environment:
+      BACKEND: backend:8000
+      FRAPPE_SITE_NAME_HEADER: symbolon.localhost
+      SOCKETIO: websocket:9000
+      UPSTREAM_REAL_IP_ADDRESS: 127.0.0.1
+      UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
+      UPSTREAM_REAL_IP_RECURSIVE: "off"
+      PROXY_READ_TIMEOUT: 120
+      CLIENT_MAX_BODY_SIZE: 50m
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+    ports:
+      - "127.0.0.1:8090:8080"
+    depends_on:
+      - backend
+      - websocket
+
+  websocket:
+    <<: *backend
+    command: ["node", "/home/frappe/frappe-bench/apps/frappe/socketio.js"]
+
+  queue-short:
+    <<: *backend
+    command: bench worker --queue short,default
+
+  queue-long:
+    <<: *backend
+    command: bench worker --queue long,default,short
+
+  scheduler:
+    <<: *backend
+    command: bench schedule
+
+  db:
+    image: mariadb:10.6
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --skip-innodb-read-only-compressed
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MARIADB_ROOT_PASSWORD: admin
+    healthcheck:
+      test: mysqladmin ping -h localhost --password=admin
+      interval: 2s
+      retries: 30
+    volumes:
+      - db-data:/var/lib/mysql
+
+  redis-queue:
+    image: redis:6.2-alpine
+    volumes:
+      - redis-queue-data:/data
+
+  redis-cache:
+    image: redis:6.2-alpine
+
+volumes:
+  sites:
+  db-data:
+  redis-queue-data:

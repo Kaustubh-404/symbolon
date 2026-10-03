@@ -1,0 +1,93 @@
+[
+  {
+    "symbolon_schema": "erpnext-v15/purchase-invoice/1",
+    "doctype": "Purchase Invoice",
+    "name": "ACC-PINV-SMOKE-0001",
+    "company": "Symbolon Demo Co",
+    "supplier": "ACME-001",
+    "payee_id": "Supplier:ACME-001",
+    "bill_no": "INV-7781",
+    "bill_date": "2026-09-28",
+    "posting_date": "2026-10-01",
+    "due_date": "2026-10-31",
+    "currency": "USD",
+    "amount_usdc6": "1250000000",
+    "not_before": 1790812800,
+    "due_by": 1793491199,
+    "items": [
+      {
+        "idx": 1,
+        "item_code": "CONSULTING",
+        "qty": "10",
+        "amount_usdc6": "1000000000"
+      },
+      {
+        "idx": 2,
+        "item_code": "TRAVEL",
+        "qty": "1",
+        "amount_usdc6": "250000000"
+      }
+    ],
+    "attachment_sha256": "0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+  },
+  {
+    "symbolon_schema": "erpnext-v15/salary-slip/1",
+    "doctype": "Salary Slip",
+    "name": "Sal Slip/HR-EMP-00001/00001",
+    "company": "Symbolon Demo Co",
+    "employee": "HR-EMP-00001",
+    "payee_id": "Employee:HR-EMP-00001",
+    "payroll_entry": "HR-PRUN-2026-00001",
+    "start_date": "2026-09-01",
+    "end_date": "2026-09-30",
+    "posting_date": "2026-09-30",
+    "currency": "USD",
+    "amount_usdc6": "4210500000",
+    "not_before": 1790726400,
+    "due_by": 1791244799,
+    "earnings": [
+      {
+        "salary_component": "Basic",
+        "amount_usdc6": "5000000000"
+      }
+    ],
+    "deductions": [
+      {
+        "salary_component": "Income Tax",
+        "amount_usdc6": "789500000"
+      }
+    ]
+  },
+  {
+    "zeta": null,
+    "Alpha": true,
+    "alpha": false,
+    "_under": [
+      3,
+      {
+        "b": 2,
+        "a": 1
+      },
+      []
+    ],
+    "unicode": "Café — naïve ✓ 日本 😀",
+    "😀": "astral key sorts by UTF-16 code unit",
+    "Ａ": "fullwidth A (U+FF21) sorts after the astral key in JS",
+    "escapes": "quote \" backslash \\ newline \n tab \t ctrl \u0001 slash /",
+    "nested": {
+      "z": {
+        "y": {
+          "x": [
+            {
+              "d": 4,
+              "c": 3
+            }
+          ]
+        }
+      },
+      "a": ""
+    },
+    "big": 9007199254740991,
+    "neg": -42
+  }
+]

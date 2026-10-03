@@ -1,0 +1,10 @@
+[
+ {
+  "accounts": [],
+  "doctype": "Mode of Payment",
+  "enabled": 1,
+  "mode_of_payment": "USDC (Arc)",
+  "name": "USDC (Arc)",
+  "type": "Bank"
+ }
+]

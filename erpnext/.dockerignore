@@ -1,0 +1,4 @@
+docker/.pull*.log
+**/__pycache__
+**/.pytest_cache
+**/*.egg-info

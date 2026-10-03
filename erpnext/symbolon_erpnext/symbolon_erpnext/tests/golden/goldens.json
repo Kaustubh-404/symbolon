@@ -1,0 +1,46 @@
+{
+  "source": "packages/sdk/src/ids.ts",
+  "documents": [
+    {
+      "canonical": "{\"amount_usdc6\":\"1250000000\",\"attachment_sha256\":\"0x9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\",\"bill_date\":\"2026-09-28\",\"bill_no\":\"INV-7781\",\"company\":\"Symbolon Demo Co\",\"currency\":\"USD\",\"doctype\":\"Purchase Invoice\",\"due_by\":1793491199,\"due_date\":\"2026-10-31\",\"items\":[{\"amount_usdc6\":\"1000000000\",\"idx\":1,\"item_code\":\"CONSULTING\",\"qty\":\"10\"},{\"amount_usdc6\":\"250000000\",\"idx\":2,\"item_code\":\"TRAVEL\",\"qty\":\"1\"}],\"name\":\"ACC-PINV-SMOKE-0001\",\"not_before\":1790812800,\"payee_id\":\"Supplier:ACME-001\",\"posting_date\":\"2026-10-01\",\"supplier\":\"ACME-001\",\"symbolon_schema\":\"erpnext-v15/purchase-invoice/1\"}",
+      "hash": "0xc3a48ea50c72a0fae7d9a3e3d9680e2847daec0d320efc2a97caa2f6c9dbff79"
+    },
+    {
+      "canonical": "{\"amount_usdc6\":\"4210500000\",\"company\":\"Symbolon Demo Co\",\"currency\":\"USD\",\"deductions\":[{\"amount_usdc6\":\"789500000\",\"salary_component\":\"Income Tax\"}],\"doctype\":\"Salary Slip\",\"due_by\":1791244799,\"earnings\":[{\"amount_usdc6\":\"5000000000\",\"salary_component\":\"Basic\"}],\"employee\":\"HR-EMP-00001\",\"end_date\":\"2026-09-30\",\"name\":\"Sal Slip/HR-EMP-00001/00001\",\"not_before\":1790726400,\"payee_id\":\"Employee:HR-EMP-00001\",\"payroll_entry\":\"HR-PRUN-2026-00001\",\"posting_date\":\"2026-09-30\",\"start_date\":\"2026-09-01\",\"symbolon_schema\":\"erpnext-v15/salary-slip/1\"}",
+      "hash": "0x8c32c87ddbfd4910a2b4ac9effac5bb93922b8355dfeb89f9f32052dc2e37764"
+    },
+    {
+      "canonical": "{\"Alpha\":true,\"_under\":[3,{\"a\":1,\"b\":2},[]],\"alpha\":false,\"big\":9007199254740991,\"escapes\":\"quote \\\" backslash \\\\ newline \\n tab \\t ctrl \\u0001 slash /\",\"neg\":-42,\"nested\":{\"a\":\"\",\"z\":{\"y\":{\"x\":[{\"c\":3,\"d\":4}]}}},\"unicode\":\"Café — naïve ✓ 日本 😀\",\"zeta\":null,\"😀\":\"astral key sorts by UTF-16 code unit\",\"Ａ\":\"fullwidth A (U+FF21) sorts after the astral key in JS\"}",
+      "hash": "0xc2ab2057b0751d2300f33383686a60e25f4777ed86dfac68b4a2003e563970e8"
+    }
+  ],
+  "obligation_ids": [
+    {
+      "doctype": "Purchase Invoice",
+      "name": "ACC-PINV-SMOKE-0001",
+      "id": "0x34e4b5eab3451713981cb4f60dd79a244690088c740ae9ac3b815f22cbc2a68c"
+    },
+    {
+      "doctype": "Salary Slip",
+      "name": "Sal Slip/HR-EMP-00001/00001",
+      "id": "0xdf5fcfd75c064b06398994ae1dc62861dc4229990c33061a28576921eeb802f7"
+    },
+    {
+      "doctype": "Purchase Invoice",
+      "name": "ACC-PINV-2026-00001",
+      "id": "0xf9f508e5d73d86bcf579d9b4d6fba5f3622e3a74acfb81eb5a120f04afc28886"
+    }
+  ],
+  "payee_ids": [
+    {
+      "kind": "Supplier",
+      "id": "ACME-001",
+      "payee_id": "0xa11b374793949d0ea6b7f6f15bf22f460bf04379d29eec0c234987041e1bbf3d"
+    },
+    {
+      "kind": "Employee",
+      "id": "HR-EMP-00001",
+      "payee_id": "0x5a2d3584e0ab123873a5e548b7fb64be96304cb54eecc2731c9258c26b7917e5"
+    }
+  ]
+}

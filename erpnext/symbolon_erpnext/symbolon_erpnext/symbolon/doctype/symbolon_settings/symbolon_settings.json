@@ -1,0 +1,161 @@
+{
+ "actions": [],
+ "creation": "2026-10-03 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "chain_section",
+  "chain_id",
+  "contract_address",
+  "rpc_urls",
+  "explorer_url",
+  "column_break_chain",
+  "start_block",
+  "last_processed_block",
+  "key_section",
+  "approver_private_key",
+  "approver_address",
+  "accounting_section",
+  "usdc_account",
+  "mode_of_payment",
+  "column_break_acc",
+  "payroll_due_days",
+  "batch_size"
+ ],
+ "fields": [
+  {
+   "description": "Register on submit, cancel on cancel, setPayee on wallet change, and write back releases every minute.",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  },
+  {
+   "fieldname": "chain_section",
+   "fieldtype": "Section Break",
+   "label": "Chain"
+  },
+  {
+   "default": "5042002",
+   "fieldname": "chain_id",
+   "fieldtype": "Int",
+   "label": "Chain ID"
+  },
+  {
+   "default": "0x06eADbFAd046F2784F6e894e153958E03EBf2Eb9",
+   "fieldname": "contract_address",
+   "fieldtype": "Data",
+   "label": "Symbolon Contract Address"
+  },
+  {
+   "default": "https://rpc.drpc.testnet.arc.io\nhttps://rpc.testnet.arc.io\nhttps://rpc.blockdaemon.testnet.arc.io",
+   "fieldname": "rpc_urls",
+   "fieldtype": "Small Text",
+   "label": "RPC URLs (one per line, tried in order)"
+  },
+  {
+   "default": "https://explorer.testnet.arc.io",
+   "fieldname": "explorer_url",
+   "fieldtype": "Data",
+   "label": "Explorer URL"
+  },
+  {
+   "fieldname": "column_break_chain",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "65291963",
+   "description": "First block the write-back scans (the contract's deploy block).",
+   "fieldname": "start_block",
+   "fieldtype": "Int",
+   "label": "Start Block"
+  },
+  {
+   "fieldname": "last_processed_block",
+   "fieldtype": "Int",
+   "label": "Last Processed Block",
+   "read_only": 1
+  },
+  {
+   "fieldname": "key_section",
+   "fieldtype": "Section Break",
+   "label": "Approver"
+  },
+  {
+   "description": "Prefer site_config.json `symbolon_approver_private_key` or env SYMBOLON_APPROVER_PRIVATE_KEY; those take precedence. This key must hold APPROVER on the contract and nothing else (the contract refuses AGENT+APPROVER).",
+   "fieldname": "approver_private_key",
+   "fieldtype": "Password",
+   "label": "Approver Private Key",
+   "length": 140
+  },
+  {
+   "description": "Derived from the key on save. Without a key, dry runs simulate from this address (default: the deployed approver).",
+   "fieldname": "approver_address",
+   "fieldtype": "Data",
+   "label": "Approver Address"
+  },
+  {
+   "fieldname": "accounting_section",
+   "fieldtype": "Section Break",
+   "label": "Accounting"
+  },
+  {
+   "description": "Bank-type account in USD representing the Symbolon vault. Used as Paid From on write-back Payment Entries.",
+   "fieldname": "usdc_account",
+   "fieldtype": "Link",
+   "label": "USDC Account (paid from)",
+   "options": "Account"
+  },
+  {
+   "default": "USDC (Arc)",
+   "fieldname": "mode_of_payment",
+   "fieldtype": "Link",
+   "label": "Mode of Payment",
+   "options": "Mode of Payment"
+  },
+  {
+   "fieldname": "column_break_acc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "5",
+   "description": "dueBy for a Salary Slip = posting date + N days, 23:59:59 UTC.",
+   "fieldname": "payroll_due_days",
+   "fieldtype": "Int",
+   "label": "Salary Due Days"
+  },
+  {
+   "default": "50",
+   "fieldname": "batch_size",
+   "fieldtype": "Int",
+   "label": "registerBatch Rows Per Tx"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-10-03 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Symbolon",
+ "name": "Symbolon Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Accounts Manager"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

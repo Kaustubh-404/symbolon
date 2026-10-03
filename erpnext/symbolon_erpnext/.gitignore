@@ -1,0 +1,4 @@
+symbolon_erpnext/tests/golden/node_modules
+*.pyc
+__pycache__/
+*.egg-info
