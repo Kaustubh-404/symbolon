@@ -1,0 +1,136 @@
+@import "tailwindcss";
+
+/* Ledger palette: paper and ink, one accent for "released", one for "refused". */
+:root {
+  --paper: #f4efe4;
+  --paper-2: #ece5d5;
+  --paper-3: #e2d9c4;
+  --ink: #1c1a15;
+  --ink-2: #4f493c;
+  --rule: #cdc2aa;
+  --released: #1d6a43;
+  --released-bg: #dcebdc;
+  --refused: #a3301c;
+  --refused-bg: #f3dcd3;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #15140f;
+    --paper-2: #1d1b15;
+    --paper-3: #26231b;
+    --ink: #ece5d3;
+    --ink-2: #b0a790;
+    --rule: #3b372c;
+    --released: #6fcf98;
+    --released-bg: #17301f;
+    --refused: #f2876f;
+    --refused-bg: #3a1d16;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-paper-3: var(--paper-3);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-rule: var(--rule);
+  --color-released: var(--released);
+  --color-released-bg: var(--released-bg);
+  --color-refused: var(--refused);
+  --color-refused-bg: var(--refused-bg);
+  --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html {
+  background: var(--paper);
+  color: var(--ink);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--paper);
+  font-family: var(--font-sans);
+  /* faint ledger ruling */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 31px,
+    color-mix(in srgb, var(--rule) 22%, transparent) 31px,
+    color-mix(in srgb, var(--rule) 22%, transparent) 32px
+  );
+}
+
+@layer base {
+  /* Preflight strips underlines; links in prose keep one. Utilities (no-underline) still win. */
+  a {
+    text-decoration-line: underline;
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  }
+  a:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* Ledger tables */
+.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.ledger caption {
+  text-align: left;
+  padding-bottom: 0.5rem;
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+}
+.ledger th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  border-bottom: 2px solid var(--ink);
+  padding: 0.5rem 0.75rem 0.4rem 0;
+  white-space: nowrap;
+}
+.ledger td {
+  border-bottom: 1px solid var(--rule);
+  padding: 0.6rem 0.75rem 0.6rem 0;
+  vertical-align: top;
+}
+.ledger td.num,
+.ledger th.num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* The torn edge of a symbolon: both halves share one zigzag, so they fit exactly. */
+@media (min-width: 768px) {
+  .half-left {
+    clip-path: polygon(0 0, 100% 0, calc(100% - 22px) 12%, 100% 25%, calc(100% - 22px) 38%, 100% 52%, calc(100% - 22px) 66%, 100% 80%, calc(100% - 22px) 90%, 100% 100%, 0 100%);
+  }
+  .half-right {
+    margin-left: -22px;
+    clip-path: polygon(22px 0, 100% 0, 100% 100%, 22px 100%, 0 90%, 22px 80%, 0 66%, 22px 52%, 0 38%, 22px 25%, 0 12%);
+  }
+}
