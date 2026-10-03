@@ -1,0 +1,15 @@
+export const deployments = {
+  "5042002": {
+    "admin": "0xD91D467DCe9dC26e4969EbbfD8690BF8bB9aCB6C",
+    "agent": "0x91c9F1CF76de4160f498CCa639e592dC370e7B0E",
+    "approver": "0x64C5B8fbC01bA4466ec95b4C3b74EFa34922D710",
+    "chainId": 5042002,
+    "cosigner": "0x9a91c4a72E561e57192A06dac22F2b5e44e87BCa",
+    "deployBlock": 65291963,
+    "guardian": "0x3902e4Ae19d7547b7f08c71C0aed5E6D34a3f1a4",
+    "mintDeposit": "0x31BF03fCb95D37e7322D8047F04b2f6436a92B63",
+    "symbolon": "0x06eADbFAd046F2784F6e894e153958E03EBf2Eb9",
+    "usdc": "0x3600000000000000000000000000000000000000",
+    "witness": "0x1efb1Ce2e120CcB99A31fDf40f41CBd7BEd233E6"
+  }
+} as const;
