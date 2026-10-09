@@ -1,0 +1,15 @@
+{
+  "fundingTx": "0xee26f6f4b1fc2d1370e0f50ea3cb07c617afbc93df94647457841b5ffb4ec995",
+  "mintTx": "0x48d55a489be828e7bc09589845eb8bbcc53ca7a8388dba9dc0baa5c86204439b",
+  "mintTransferId": "8af966b9-7769-4bf9-a189-54b2e58323fc",
+  "retryFirstPayment": "0x0ca5dddabe873ddcf41fdd1f6f611357aef847e3eb53a5206f259e590465713a",
+  "fixtures": {
+    "retry": "0x11590ce6827dd0ff213f1e101e9545d18fdd107d10db45ae0c51c66af17ccbee",
+    "phantom": "0x7f698fdde0ca72802eb563f148f6558e9a0f9708b0680eff4ef18e7e292c3112",
+    "short": "0x68de94ca3c9a5ede5904de2b0aeba5ad87fd698ef4ba3c3724470ac47b913842",
+    "cosign": "0xa53e9fc13b58b7de3100d1732e3067f65efde949948a7c796050f17f4be9833f",
+    "hold": "0x766db070169a2dde153b193bf78f5694c4a8b621747c760f27bf36172eb6b572",
+    "swap": "0xef2ce53b89dbd268428c6a07444f130eec9858a5574b42d058353fe3b7d408c4",
+    "ghost": "0x652e7eb776993fede81df18bae16ac816484b1840fbb0046cf0d100432f682bc"
+  }
+}
