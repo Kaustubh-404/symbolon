@@ -67,8 +67,7 @@ services:
         wait-for-it -t 120 redis-cache:6379;
         wait-for-it -t 120 redis-queue:6379;
         if [ ! -d sites/symbolon.localhost ]; then
-          bench new-site symbolon.localhost --mariadb-user-host-login-scope='%' --admin-password=admin
-          --db-root-username=root --db-root-password=admin --install-app erpnext --set-default;
+          bench new-site symbolon.localhost --mariadb-user-host-login-scope='%' --admin-password=admin --db-root-username=root --db-root-password=admin --install-app erpnext --set-default;
           for app in $$(ls -1 apps); do
             if [ "$$app" = hrms ]; then bench --site symbolon.localhost install-app hrms; fi;
           done;
