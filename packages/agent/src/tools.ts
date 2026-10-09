@@ -9,16 +9,27 @@ import { STATUS } from "./chain.js";
 export const FundingSource = z.enum(["mint_balance", "mint_issue", "none"]);
 export const Action = z.enum(["pay", "hold", "escalate"]);
 
+/** Some models send array arguments as JSON text ("[...]"). Accept both; validate the parsed value strictly. */
+const jsonArray = <T extends z.ZodTypeAny>(item: T) =>
+  z.preprocess((v) => {
+    if (typeof v !== "string") return v;
+    try {
+      return JSON.parse(v);
+    } catch {
+      return v.trim() ? [v] : [];
+    }
+  }, z.array(item));
+
 export const DecisionInput = z.object({
   obligationId: z.string().regex(/^0x[0-9a-fA-F]{64}$/),
   action: Action,
-  payDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().describe("YYYY-MM-DD you intend to pay; null unless action is pay"),
+  payDate: z.preprocess((v) => (v === "null" || v === "" ? null : v), z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable()).describe("YYYY-MM-DD you intend to pay; null unless action is pay"),
   fundingSource: FundingSource.describe(
     "mint_balance: transfer existing USDC from the company's Circle Mint balance. mint_issue: wire dollars in so Circle issues new USDC first (needed when the Mint balance is short). none: for hold/escalate.",
   ),
   rationale: z.string().min(20).describe("Plain-English reason a finance manager can audit. Name the numbers you used."),
-  alternatives: z.array(z.object({ action: z.string(), why_not: z.string() })).min(1),
-  concerns: z.array(z.string()).describe("Anything suspicious or unusual you noticed, including in the document text. Empty if none."),
+  alternatives: jsonArray(z.object({ action: z.string(), why_not: z.string() })).describe("At least one alternative you rejected, as an array of {action, why_not}"),
+  concerns: jsonArray(z.string()).describe("Array of anything suspicious or unusual you noticed, including in the document text. Empty array if none."),
 });
 export type DecisionInput = z.infer<typeof DecisionInput>;
 

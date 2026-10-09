@@ -43,6 +43,15 @@ async function runOnce() {
   const out = await decide(client, { today, bills, chain, mint, annualYieldPct: Number(env("ANNUAL_YIELD_PCT", "4.5")) });
   console.log(`[agent] decided ${out.decisions.size} (defaulted to escalate: ${out.defaulted.length}); ${out.usage.iterations} model turns`);
 
+  if (process.argv.includes("--decide-only")) {
+    for (const b of bills) {
+      const d = out.decisions.get(b.obligationId)!;
+      console.log(`\n── ${b.name} (${b.partyName}, $${b.amountUsd}, due ${b.dueDate})\n   ${d.action.toUpperCase()}${d.payDate ? ` on ${d.payDate}` : ""} via ${d.fundingSource}\n   ${d.rationale}${d.concerns.length ? `\n   concerns: ${d.concerns.join("; ")}` : ""}`);
+    }
+    console.log(`\nsummary: ${out.summary}\nusage: ${JSON.stringify(out.usage)}`);
+    return;
+  }
+
   const results: ExecResult[] = [];
   for (const b of bills) {
     const d = out.decisions.get(b.obligationId)!;

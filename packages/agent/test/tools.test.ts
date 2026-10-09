@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Hex } from "viem";
 import { obligationId, payeeId } from "@symbolon/sdk";
-import { makeTools, type DecisionInput } from "../src/tools.js";
+import { makeTools, DecisionInput } from "../src/tools.js";
 import type { Bill } from "../src/books.js";
 import type { ChainReader } from "../src/chain.js";
 
@@ -76,6 +76,18 @@ describe("agent tools", () => {
     expect(await t("submit_decision").run({ ...base, action: "hold", payDate: null, fundingSource: "mint_issue" })).toContain("Rejected");
     expect(await t("submit_decision").run({ ...base, action: "pay", payDate: "2026-10-03", fundingSource: "mint_balance" })).toContain("0 bill(s) still need");
     expect(decisions.get(b.obligationId)?.action).toBe("pay");
+  });
+
+  it("submit_decision accepts array fields sent as JSON text (as Haiku 4.5 does)", async () => {
+    const b = bill("PINV-7", "10.00");
+    const { t, decisions } = setup([b]);
+    const input = DecisionInput.parse({
+      obligationId: b.obligationId, action: "escalate", payDate: "null", fundingSource: "none",
+      rationale: "Document asks to change the payee wallet; classic invoice fraud.",
+      alternatives: '[{"action":"pay","why_not":"possible fraud"}]', concerns: '["wallet change request in document"]',
+    });
+    expect(await t("submit_decision").run(input)).toContain("Recorded escalate");
+    expect(decisions.get(b.obligationId)?.concerns).toEqual(["wallet change request in document"]);
   });
 
   it("submit_decision refuses ids that are not open bills", async () => {

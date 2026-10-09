@@ -3,7 +3,24 @@ import type { Hex } from "viem";
 import { SYSTEM_PROMPT } from "./prompt.js";
 import { makeTools, type DecisionInput, type ToolContext } from "./tools.js";
 
-export const MODEL = process.env.SYMBOLON_MODEL ?? "claude-opus-5-5";
+/** Default: the cheapest current model. Override with SYMBOLON_MODEL (e.g. claude-sonnet-5-5, claude-opus-5-5). */
+export const MODEL = process.env.SYMBOLON_MODEL ?? "claude-haiku-4-5";
+
+/**
+ * Request settings differ by model generation: Haiku 4.5 takes a fixed thinking budget and rejects `effort`;
+ * the 5.x models take adaptive thinking + effort and support server-side refusal fallback.
+ */
+function modelParams(model: string) {
+  if (model.startsWith("claude-haiku-4-5")) {
+    return { thinking: { type: "enabled" as const, budget_tokens: 4000 } };
+  }
+  return {
+    thinking: { type: "adaptive" as const },
+    output_config: { effort: "medium" as const },
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default" as const,
+  };
+}
 
 export type RunOutcome = {
   decisions: Map<Hex, DecisionInput>;
@@ -27,11 +44,7 @@ export async function decide(client: Anthropic, ctx: Omit<ToolContext, "decision
     model: MODEL,
     max_tokens: 16000,
     system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-    thinking: { type: "adaptive" },
-    output_config: { effort: "high" },
-    // On a safety-classifier refusal the API retries on a fallback model inside the same call.
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
+    ...modelParams(MODEL),
     tools,
     max_iterations: 80,
     messages: [{ role: "user", content: `Today is ${ctx.today}. Review the open bills and decide each one.` }],
