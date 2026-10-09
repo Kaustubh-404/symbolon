@@ -104,7 +104,7 @@ class FrappeJournal:
 			"max_priority_fee_per_gas": str(i.max_priority_fee_per_gas),
 			"hashes": json.dumps(i.hashes),
 			"status": i.status,
-			"block_number": i.block_number,
+			"block_number": i.block_number or 0,  # Int columns are NOT NULL in Frappe; 0 reads back as "not mined"
 			"mined_hash": i.mined_hash,
 			"error": i.error,
 		}
