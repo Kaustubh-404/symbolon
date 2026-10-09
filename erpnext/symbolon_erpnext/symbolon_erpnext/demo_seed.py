@@ -70,3 +70,29 @@ def run(payees: dict | None = None, start_block: int | None = None):
 
 	frappe.db.commit()
 	return {"company": company, "usdc_account": account, "suppliers": sorted((payees or {}).keys())}
+
+
+JUDGE_ROLE = "Symbolon Judge"
+JUDGE_READS = ["Purchase Invoice", "Payment Entry", "Supplier", "Item", "Company", "Account", "Mode of Payment", "Symbolon Intent"]
+
+
+def make_judge(email: str, password: str):
+	"""A read-only login for hackathon judges: can read bills, payments and suppliers; cannot create, edit or submit."""
+	if not frappe.db.exists("Role", JUDGE_ROLE):
+		frappe.get_doc({"doctype": "Role", "role_name": JUDGE_ROLE, "desk_access": 1}).insert(ignore_permissions=True)
+	for dt in JUDGE_READS:
+		if not frappe.db.exists("Custom DocPerm", {"parent": dt, "role": JUDGE_ROLE}):
+			frappe.get_doc(
+				{"doctype": "Custom DocPerm", "parent": dt, "parenttype": "DocType", "parentfield": "permissions", "role": JUDGE_ROLE, "permlevel": 0,
+				 "read": 1, "report": 1, "export": 0, "write": 0, "create": 0, "submit": 0, "cancel": 0, "delete": 0}
+			).insert(ignore_permissions=True)
+		frappe.clear_cache(doctype=dt)
+	user = frappe.get_doc("User", email) if frappe.db.exists("User", email) else frappe.get_doc(
+		{"doctype": "User", "email": email, "first_name": "Judge", "user_type": "System User", "send_welcome_email": 0}
+	).insert(ignore_permissions=True)
+	user.roles = []
+	user.append("roles", {"role": JUDGE_ROLE})
+	user.new_password = password
+	user.save(ignore_permissions=True)
+	frappe.db.commit()
+	return {"user": email, "role": JUDGE_ROLE, "reads": JUDGE_READS}
