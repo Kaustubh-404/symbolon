@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { encodeFunctionData, type Hex } from "viem";
+import { encodeFunctionData, erc20Abi, type Hex } from "viem";
 import {
   ACTION_CODE,
   CircleMint,
@@ -10,6 +10,7 @@ import {
   hashRecord,
   idempotencyUuid,
   symbolonAbi,
+  USDC_ADDRESS,
   usdToUnits,
   unitsToUsd,
   type DecisionRecord,
@@ -33,8 +34,10 @@ export type ExecConfig = {
   chain: ChainReader;
   sender: NonceSafeSender;
   mint: CircleMint | null;
-  /** Mint recipient id of the vault address (registered and console-approved once) */
-  vaultRecipientId: string | null;
+  /** Mint recipient id of the treasury EOA (registered and console-approved once). Mint cannot pay a contract on ARC. */
+  treasuryRecipientId: string | null;
+  /** sends the forward treasury → vault; holds only the treasury key */
+  treasurySender: NonceSafeSender | null;
   /** Mint sandbox wire details, for mint_issue */
   wire: { trackingRef: string; beneficiaryAccountNumber: string } | null;
   claimsDir: string;
@@ -108,14 +111,30 @@ export async function execute(cfg: ExecConfig, bill: Bill, d: DecisionInput): Pr
   // 2. fund this bill, exactly, from Circle Mint (skip if the witness already saw funding)
   const witnessed = o.witnessDigest !== `0x${"0".repeat(64)}`;
   if (!witnessed) {
-    if (!cfg.mint || !cfg.vaultRecipientId) return { ...res, note: "no Circle Mint configuration; cannot fund" };
+    if (!cfg.mint || !cfg.treasuryRecipientId || !cfg.treasurySender) return { ...res, note: "no Circle Mint / treasury configuration; cannot fund" };
     const amount = unitsToUsd(o.amount);
     if (d.fundingSource === "mint_issue") await issue(cfg, o.amount);
-    const t = await cfg.mint.createTransfer(idempotencyUuid("symbolon:fund", bill.obligationId), cfg.vaultRecipientId, amount);
+    // hop 1: Circle Mint → treasury EOA (idempotent on the bill id)
+    const t = await cfg.mint.createTransfer(idempotencyUuid("symbolon:fund", bill.obligationId), cfg.treasuryRecipientId, amount);
     res.fundingTransferId = t.data.id;
+    let mintTx: string | undefined;
+    for (let i = 0; i < 36 && !mintTx; i++) {
+      const cur = (await cfg.mint.getTransfer(t.data.id)).data;
+      if (cur.status === "failed") return { ...res, note: `Circle transfer ${t.data.id} failed` };
+      mintTx = cur.transactionHash;
+      if (!mintTx) await sleep(5_000);
+    }
+    if (!mintTx) return { ...res, note: `Circle transfer ${t.data.id} has no on-chain tx yet; will retry next run` };
+    await cfg.chain.pub.waitForTransactionReceipt({ hash: mintTx as Hex, timeout: 60_000 });
+    // hop 2: treasury → vault, exactly the bill amount (intent key = bill id, so a rerun never forwards twice)
+    const fwd = await cfg.treasurySender.send({
+      key: `forward:${bill.obligationId}`,
+      to: USDC_ADDRESS,
+      data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [cfg.chain.vault, o.amount] }),
+    });
     const claimPath = join(cfg.claimsDir, `${bill.obligationId}.json`);
     if (!existsSync(claimPath)) {
-      writeFileSync(claimPath, JSON.stringify({ obligationId: bill.obligationId, mintTransferId: t.data.id, claimedBy: "agent", at: new Date().toISOString() }, null, 2));
+      writeFileSync(claimPath, JSON.stringify({ obligationId: bill.obligationId, mintTransferId: t.data.id, forwardTx: fwd.hash, claimedBy: "agent", at: new Date().toISOString() }, null, 2));
     }
     // 3. the witness decides, independently; we only wait
     const deadline = Date.now() + cfg.witnessTimeoutMs;

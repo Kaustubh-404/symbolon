@@ -28,6 +28,13 @@ const chain = chainReader(chainId);
 const account = privateKeyToAccount(env("AGENT_PK") as Hex);
 const wallet = createWalletClient({ chain: chainFor(chainId), account, transport: arcTransport(chainId) });
 const sender = new NonceSafeSender(chain.pub, wallet, new FileJournal(join(dataDir, "journal.json")));
+const treasurySender = opt("TREASURY_PK")
+  ? new NonceSafeSender(
+      chain.pub,
+      createWalletClient({ chain: chainFor(chainId), account: privateKeyToAccount(env("TREASURY_PK") as Hex), transport: arcTransport(chainId) }),
+      new FileJournal(join(dataDir, "treasury-journal.json")),
+    )
+  : null;
 const mint = opt("CIRCLE_MINT_KEY") ? new CircleMint(env("CIRCLE_MINT_KEY")) : null;
 const books: Books = opt("ERPNEXT_URL")
   ? new ErpNextBooks(env("ERPNEXT_URL"), env("ERPNEXT_TOKEN"))
@@ -62,7 +69,8 @@ async function runOnce() {
           chain,
           sender,
           mint,
-          vaultRecipientId: opt("MINT_VAULT_RECIPIENT_ID"),
+          treasuryRecipientId: opt("MINT_TREASURY_RECIPIENT_ID"),
+          treasurySender,
           wire: opt("MINT_WIRE_TRACKING_REF")
             ? { trackingRef: env("MINT_WIRE_TRACKING_REF"), beneficiaryAccountNumber: env("MINT_WIRE_BENEFICIARY_ACCOUNT") }
             : null,

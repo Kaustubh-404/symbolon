@@ -40,6 +40,33 @@ export type Verdict =
 
 const ZERO32 = `0x${"0".repeat(64)}` as Hex;
 
+/** USDC Transfer events in a receipt (ERC-20 view only; EIP-7708 system-emitter logs are ignored). */
+function usdcTransfers(chain: ChainEvidence) {
+  return chain.logs
+    .filter((l) => l.address.toLowerCase() === USDC_ADDRESS.toLowerCase())
+    .filter((l) => l.address.toLowerCase() !== SYSTEM_EMITTER)
+    .map((l) => {
+      try {
+        return decodeEventLog({ abi: erc20Abi, eventName: "Transfer", data: l.data, topics: l.topics as [Hex, ...Hex[]] });
+      } catch {
+        return null;
+      }
+    })
+    .filter((e): e is NonNullable<typeof e> => e !== null);
+}
+
+const sumTo = (chain: ChainEvidence, to: Hex, from?: Hex) =>
+  usdcTransfers(chain)
+    .filter((e) => getAddress(e.args.to) === getAddress(to) && (!from || getAddress(e.args.from) === getAddress(from)))
+    .reduce((s, e) => s + e.args.value, 0n);
+
+/**
+ * Funding arrives one of two ways:
+ *  - direct: Circle Mint → vault (one hop). Measured 2026-10-09: the Mint sandbox fails transfers on ARC to a contract
+ *    address ("blockchain_error"), so in practice this is the path for EOA vaults only.
+ *  - via treasury: Circle Mint → treasury EOA (hop 1), then treasury → vault for the same amount (hop 2).
+ * The witness checks every hop against the chain, and hop 1 against Circle's own record.
+ */
 export function verifyFunding(args: {
   obligation: OpenObligation;
   vault: Hex;
@@ -48,8 +75,14 @@ export function verifyFunding(args: {
   chain: ChainEvidence | null;
   /** Circle transfer ids already used to witness other obligations → that obligation id */
   used: ReadonlyMap<string, Hex>;
+  /** the treasury EOA that receives Mint transfers, when funding goes via treasury */
+  treasury?: Hex;
+  /** hop 2 receipt (treasury → vault), required when the Circle transfer went to the treasury */
+  forward?: ChainEvidence | null;
+  /** forward tx hashes already used to witness other obligations → that obligation id */
+  usedForwards?: ReadonlyMap<string, Hex>;
 }): Verdict {
-  const { obligation: o, vault, transfer: t, transferRaw, chain, used } = args;
+  const { obligation: o, vault, transfer: t, transferRaw, chain, used, treasury, forward, usedForwards } = args;
 
   if (o.status !== 1) return { attest: false, reason: `obligation is not open (status ${o.status})`, retryable: false };
   if (o.witnessDigest !== ZERO32) return { attest: false, reason: "obligation already witnessed", retryable: false };
@@ -62,8 +95,10 @@ export function verifyFunding(args: {
   if (t.destination.type !== "blockchain" || t.destination.chain !== "ARC") {
     return { attest: false, reason: `Circle transfer ${t.id} is not an on-chain transfer on ARC`, retryable: false };
   }
-  if (!t.destination.address || getAddress(t.destination.address) !== getAddress(vault)) {
-    return { attest: false, reason: `Circle transfer ${t.id} was sent to ${t.destination.address}, not the vault`, retryable: false };
+  const dest = t.destination.address ? getAddress(t.destination.address) : null;
+  const viaTreasury = !!treasury && dest === getAddress(treasury);
+  if (!dest || (dest !== getAddress(vault) && !viaTreasury)) {
+    return { attest: false, reason: `Circle transfer ${t.id} was sent to ${t.destination.address}, not the vault or treasury`, retryable: false };
   }
   if (t.amount.currency !== "USD") return { attest: false, reason: `unsupported currency ${t.amount.currency}`, retryable: false };
 
@@ -76,35 +111,38 @@ export function verifyFunding(args: {
   if (chain.status !== "success") return { attest: false, reason: `tx ${chain.txHash} reverted on-chain`, retryable: false };
 
   const circleAmount = usdToUnits(t.amount.amount);
-  const toVault = chain.logs
-    .filter((l) => l.address.toLowerCase() === USDC_ADDRESS.toLowerCase()) // the ERC-20 view; never the EIP-7708 system emitter
-    .filter((l) => l.address.toLowerCase() !== SYSTEM_EMITTER)
-    .map((l) => {
-      try {
-        return decodeEventLog({ abi: erc20Abi, eventName: "Transfer", data: l.data, topics: l.topics as [Hex, ...Hex[]] });
-      } catch {
-        return null;
-      }
-    })
-    .filter((e): e is NonNullable<typeof e> => e !== null)
-    .filter((e) => getAddress(e.args.to) === getAddress(vault));
+  const hop1 = sumTo(chain, dest);
+  if (hop1 === 0n) return { attest: false, reason: `tx ${chain.txHash} moved no USDC to ${dest}`, retryable: false };
+  if (hop1 !== circleAmount) {
+    return { attest: false, reason: `Circle says ${circleAmount} units, the chain shows ${hop1} — ledgers disagree`, retryable: false };
+  }
 
-  const onChain = toVault.reduce((s, e) => s + e.args.value, 0n);
-  if (onChain === 0n) return { attest: false, reason: `tx ${chain.txHash} moved no USDC into the vault`, retryable: false };
-  if (onChain !== circleAmount) {
-    return {
-      attest: false,
-      reason: `Circle says ${circleAmount} units, the chain shows ${onChain} into the vault — ledgers disagree`,
-      retryable: false,
-    };
+  let fundingRef = chain.txHash;
+  if (viaTreasury) {
+    if (!forward) return { attest: false, reason: "funding reached the treasury; waiting for the forward into the vault", retryable: true };
+    const fprior = usedForwards?.get(forward.txHash.toLowerCase());
+    if (fprior && fprior !== o.id) return { attest: false, reason: `forward tx already witnessed obligation ${fprior}`, retryable: false };
+    if (forward.status !== "success") return { attest: false, reason: `forward tx ${forward.txHash} reverted`, retryable: false };
+    if (forward.blockNumber < chain.blockNumber) {
+      return { attest: false, reason: "forward into the vault happened before Circle's funding arrived", retryable: false };
+    }
+    const hop2 = sumTo(forward, vault, treasury);
+    if (hop2 !== circleAmount) {
+      return {
+        attest: false,
+        reason: `treasury forwarded ${hop2} units into the vault, but Circle funded ${circleAmount} — the hops disagree`,
+        retryable: false,
+      };
+    }
+    fundingRef = forward.txHash;
   }
 
   return {
     attest: true,
     observedAmount: circleAmount,
-    fundingRef: chain.txHash,
+    fundingRef,
     witnessDigest: digestEvidence(transferRaw),
     mismatch: circleAmount !== o.amount,
-    chainFrom: toVault[0]!.args.from,
+    chainFrom: usdcTransfers(chain).find((e) => getAddress(e.args.to) === dest)!.args.from,
   };
 }

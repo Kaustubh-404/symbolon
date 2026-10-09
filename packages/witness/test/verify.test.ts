@@ -119,3 +119,43 @@ describe("verifyFunding", () => {
     expect(digestEvidence(raw(t))).not.toBe(digestEvidence(raw({ ...t, createDate: "2026-10-01T18:12:49.963Z" })));
   });
 });
+
+describe("verifyFunding via treasury (Mint cannot pay a contract on ARC)", () => {
+  const TREASURY = "0x676e9EacD4feB3322295ab5E399d7c316e26013b" as Hex;
+  const FWD = "0x" + "f".repeat(64);
+  const toTreasury = (amt: string) => transfer(amt, { destination: { type: "blockchain", address: TREASURY.toLowerCase(), chain: "ARC" } });
+  const hop1 = (v: bigint) => chain([usdcLog(OMNIBUS, TREASURY, v)]);
+  const hop2 = (v: bigint, over: Partial<ChainEvidence> = {}) =>
+    chain([usdcLog(TREASURY, VAULT, v)], { txHash: FWD as Hex, blockNumber: 64986900n, ...over });
+  const run = (t: MintTransfer, fwd: ChainEvidence | null, usedForwards = new Map<string, Hex>()) =>
+    verifyFunding({ obligation: ob(5_000_000n), vault: VAULT, transfer: t, transferRaw: raw(t), chain: hop1(usdToUnitsLocal(t.amount.amount)), used: new Map(), treasury: TREASURY, forward: fwd, usedForwards });
+  const usdToUnitsLocal = (a: string) => BigInt(Math.round(Number(a) * 1e6));
+
+  it("attests when Circle → treasury and treasury → vault carry the same amount; fundingRef is the forward", () => {
+    const v = run(toTreasury("5.00"), hop2(5_000_000n));
+    expect(v.attest).toBe(true);
+    if (v.attest) expect(v.fundingRef).toBe(FWD);
+  });
+
+  it("waits while funding sits in the treasury without a forward", () => {
+    expect(run(toTreasury("5.00"), null)).toMatchObject({ attest: false, retryable: true });
+  });
+
+  it("refuses when the treasury forwards a different amount than Circle funded", () => {
+    expect(run(toTreasury("5.00"), hop2(4_000_000n))).toMatchObject({ attest: false, retryable: false });
+  });
+
+  it("refuses a forward that went from somewhere other than the treasury", () => {
+    const fwd = chain([usdcLog(OMNIBUS, VAULT, 5_000_000n)], { txHash: FWD as Hex, blockNumber: 64986900n });
+    expect(run(toTreasury("5.00"), fwd)).toMatchObject({ attest: false });
+  });
+
+  it("refuses to reuse one forward for two bills", () => {
+    const other = keccak256(toBytes("Purchase Invoice:OTHER")) as Hex;
+    expect(run(toTreasury("5.00"), hop2(5_000_000n), new Map([[FWD, other]]))).toMatchObject({ attest: false, retryable: false });
+  });
+
+  it("refuses a forward older than Circle's funding", () => {
+    expect(run(toTreasury("5.00"), hop2(5_000_000n, { blockNumber: 1n }))).toMatchObject({ attest: false, retryable: false });
+  });
+});

@@ -27,7 +27,7 @@ import { verifyFunding, type ChainEvidence } from "./verify.js";
  * re-hash them and compare with the on-chain witnessDigest.
  */
 
-type Claim = { obligationId: Hex; mintTransferId: string; claimedBy?: string; at?: string };
+type Claim = { obligationId: Hex; mintTransferId: string; forwardTx?: Hex; claimedBy?: string; at?: string };
 
 const env = (k: string, d?: string) => {
   const v = process.env[k] ?? d;
@@ -53,8 +53,16 @@ const wallet = createWalletClient({ chain, account, transport: arcTransport(chai
 const sender = new NonceSafeSender(pub, wallet, new FileJournal(join(dataDir, "journal.json")));
 const mint = new CircleMint(env("CIRCLE_MINT_KEY"), env("CIRCLE_MINT_BASE", "https://api-sandbox.circle.com"));
 
-const used = new Map<string, Hex>(existsSync(usedPath) ? (JSON.parse(readFileSync(usedPath, "utf8")) as [string, Hex][]) : []);
-const saveUsed = () => writeFileSync(usedPath, JSON.stringify([...used.entries()], null, 2));
+const usedFwdPath = join(dataDir, "used-forwards.json");
+const load = (p: string) => new Map<string, Hex>(existsSync(p) ? (JSON.parse(readFileSync(p, "utf8")) as [string, Hex][]) : []);
+const used = load(usedPath);
+const usedForwards = load(usedFwdPath);
+const saveUsed = () => {
+  writeFileSync(usedPath, JSON.stringify([...used.entries()], null, 2));
+  writeFileSync(usedFwdPath, JSON.stringify([...usedForwards.entries()], null, 2));
+};
+/** Mint sandbox cannot pay a contract on ARC, so funding goes Mint → treasury EOA → vault. */
+const treasury = (process.env.TREASURY_ADDRESS || undefined) as Hex | undefined;
 
 function readClaims(): Claim[] {
   return readdirSync(claimsDir)
@@ -82,7 +90,11 @@ async function handle(c: Claim) {
   const o = await pub.readContract({ address: vault, abi: symbolonAbi, functionName: "getObligation", args: [c.obligationId] });
   const { data: transfer, raw } = await mint.getTransfer(c.mintTransferId);
   const ev = transfer.transactionHash ? await chainEvidence(transfer.transactionHash as Hex) : null;
+  const fwd = c.forwardTx ? await chainEvidence(c.forwardTx) : null;
   const verdict = verifyFunding({
+    treasury,
+    forward: fwd,
+    usedForwards,
     obligation: { id: c.obligationId, amount: o.amount, status: o.status, witnessDigest: o.witnessDigest },
     vault,
     transfer,
@@ -97,6 +109,7 @@ async function handle(c: Claim) {
     claim: c,
     circle: { endpoint: `GET /v1/businessAccount/transfers/${c.mintTransferId}`, rawResponse: raw },
     chain: ev ? { txHash: ev.txHash, blockNumber: ev.blockNumber.toString(), status: ev.status } : null,
+    forward: fwd ? { txHash: fwd.txHash, blockNumber: fwd.blockNumber.toString(), status: fwd.status, from: treasury } : null,
     checkedAt: new Date().toISOString(),
   };
 
@@ -116,6 +129,7 @@ async function handle(c: Claim) {
     }),
   });
   used.set(transfer.id, c.obligationId);
+  if (fwd) usedForwards.set(fwd.txHash.toLowerCase(), c.obligationId);
   saveUsed();
   writeFileSync(
     done,
