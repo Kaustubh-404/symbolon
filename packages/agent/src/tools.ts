@@ -154,7 +154,16 @@ export function makeTools(ctx: ToolContext) {
     inputSchema: z.object({ obligationId: z.string() }),
     run: async ({ obligationId }) => {
       const r = await ctx.chain.check(obligationId as Hex);
-      return r ? json({ releasable: false, refusal: r.name, explanation: r.human }) : json({ releasable: true });
+      if (!r) return json({ releasable: true });
+      const expected = ["WitnessMissing", "NoDecisionCommitted", "DecisionSameBlock"].includes(r.name);
+      return json({
+        releasable: false,
+        refusal: r.name,
+        explanation: r.human,
+        note: expected
+          ? "Expected before you decide: funding is sent and witnessed only after a pay decision. Not a reason to hold."
+          : "This refusal is about the bill itself; weigh it in your decision.",
+      });
     },
   });
 
