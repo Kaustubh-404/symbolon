@@ -1,7 +1,7 @@
 import { decodeEventLog, type Hex, type Log } from "viem";
 import { MAX_LOG_RANGE, SYSTEM_EMITTER, symbolonAbi } from "@symbolon/sdk";
 import { client } from "./client";
-import { DEPLOY_BLOCK, SNAPSHOT_TTL_MS, SYMBOLON } from "./config";
+import { DEPLOY_BLOCK, EXPLORER_API, SNAPSHOT_TTL_MS, SYMBOLON } from "./config";
 import { memo } from "./memo";
 
 /**
@@ -109,8 +109,53 @@ function chunks(from: bigint, to: bigint): Array<[bigint, bigint]> {
 const byChainOrder = (a: ChainEvent, b: ChainEvent) =>
   a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : a.blockNumber < b.blockNumber ? -1 : 1;
 
+/** Blocks re-read over RPC after an explorer bootstrap, in case the explorer's index lags the chain. */
+const EXPLORER_OVERLAP = 2_000n;
+
+/**
+ * Cold start: a fresh serverless instance would otherwise rescan every block since deployment over RPC (measured:
+ * ~110 s for ~1M blocks). The explorer serves the contract's whole log history in a few paged requests instead.
+ * Its result is only a starting point: the last EXPLORER_OVERLAP blocks are re-read over RPC and de-duplicated.
+ */
+async function bootstrapFromExplorer(head: bigint): Promise<boolean> {
+  try {
+    const logs: Log[] = [];
+    let params: Record<string, unknown> | null = {};
+    for (let page = 0; params && page < 40; page++) {
+      const qs = new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString();
+      const res = await fetch(`${EXPLORER_API}/addresses/${SYMBOLON}/logs${qs ? `?${qs}` : ""}`, { cache: "no-store" });
+      if (!res.ok) return false;
+      const body = (await res.json()) as {
+        items: { block_number: number; index: number; transaction_hash: Hex; topics: (Hex | null)[]; data: Hex; address: { hash: Hex } }[];
+        next_page_params: Record<string, unknown> | null;
+      };
+      for (const it of body.items) {
+        logs.push({
+          address: it.address.hash,
+          topics: it.topics.filter((t): t is Hex => t !== null),
+          data: it.data,
+          blockNumber: BigInt(it.block_number),
+          logIndex: it.index,
+          transactionHash: it.transaction_hash,
+        } as unknown as Log);
+      }
+      params = body.next_page_params;
+    }
+    if (params) return false; // more history than we are willing to page through; fall back to RPC
+    const until = head - TAIL - EXPLORER_OVERLAP;
+    state.committed = decode(logs).filter((e) => e.blockNumber <= until);
+    state.committedTo = until;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const eventKey = (e: ChainEvent) => `${e.txHash}:${e.logIndex}`;
+
 async function sync(): Promise<{ events: ChainEvent[]; head: bigint }> {
   const head = await client.getBlockNumber({ cacheTime: 0 });
+  if (state.committedTo < DEPLOY_BLOCK && head - DEPLOY_BLOCK > 50_000n) await bootstrapFromExplorer(head);
   const commitTarget = head - TAIL;
 
   // 1. Advance the committed index in batches; progress from completed batches is kept even if a later one fails.
@@ -126,7 +171,8 @@ async function sync(): Promise<{ events: ChainEvent[]; head: bigint }> {
   const tailFrom = state.committedTo + 1n;
   const tail = tailFrom <= head ? decode(await getRange(tailFrom, head)) : [];
 
-  const events = [...state.committed, ...tail].sort(byChainOrder);
+  const seen = new Set<string>();
+  const events = [...state.committed, ...tail].filter((e) => (seen.has(eventKey(e)) ? false : (seen.add(eventKey(e)), true))).sort(byChainOrder);
   return { events, head };
 }
 
