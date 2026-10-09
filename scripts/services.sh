@@ -27,9 +27,15 @@ case "${1:-}" in
     set -a; . "$SEC/agent.env"; set +a
     export AGENT_PK="$(key agent)" AGENT_DATA_DIR="$ROOT/.data/agent"
     # treasury key: forwards exactly a bill's amount from the Mint-funded treasury EOA into the vault
-    export TREASURY_PK="${TREASURY_PK:-$(jq -r '.[0].private_key' "$ROOT/../.spike-wallet.json" 2>/dev/null || true)}"
+    set -a; . "$SEC/treasury.env"; set +a
     unset ERPNEXT_ADMIN_PASSWORD
     cd "$ROOT/packages/agent" && exec npx tsx src/run.ts "$@"
     ;;
-  *) echo "usage: $0 witness | agent [--once] [--decide-only]"; exit 1 ;;
+  trial)
+    set -a; . "$SEC/agent.env"; . "$SEC/treasury.env"; . "$SEC/trial.env"; set +a
+    export AGENT_PK="$(key agent)" AGENT_DATA_DIR="$ROOT/.data/agent"
+    unset ERPNEXT_ADMIN_PASSWORD
+    cd "$ROOT/packages/agent" && exec npx tsx src/trial.ts
+    ;;
+  *) echo "usage: $0 witness | agent [--once] [--decide-only] | trial"; exit 1 ;;
 esac
