@@ -40,25 +40,42 @@ export type Verdict =
 
 const ZERO32 = `0x${"0".repeat(64)}` as Hex;
 
-/** USDC Transfer events in a receipt (ERC-20 view only; EIP-7708 system-emitter logs are ignored). */
-function usdcTransfers(chain: ChainEvidence) {
-  return chain.logs
+type UsdcMove = { from: Hex; to: Hex; units: bigint; native: boolean };
+
+/**
+ * USDC moves in a receipt, in 6-decimal units. Arc has one USDC with two views:
+ *  - ERC-20 transfers (via 0x3600…0000) log a Transfer from the USDC address, 6 decimals;
+ *  - native value transfers log a Transfer from the EIP-7708 system emitter, 18 decimals.
+ * Measured 2026-10-09: Circle Mint pays out NATIVE USDC (input 0x, value in wei), so its only log is the system
+ * emitter's — which is also why a Mint payout to a contract without a payable receive() fails.
+ * We use the ERC-20 logs if there are any, otherwise the system-emitter logs, never both (no double counting).
+ */
+function usdcMoves(chain: ChainEvidence): UsdcMove[] {
+  const decode = (l: ChainEvidence["logs"][number]) => {
+    try {
+      return decodeEventLog({ abi: erc20Abi, eventName: "Transfer", data: l.data, topics: l.topics as [Hex, ...Hex[]] });
+    } catch {
+      return null;
+    }
+  };
+  const erc20 = chain.logs
     .filter((l) => l.address.toLowerCase() === USDC_ADDRESS.toLowerCase())
-    .filter((l) => l.address.toLowerCase() !== SYSTEM_EMITTER)
-    .map((l) => {
-      try {
-        return decodeEventLog({ abi: erc20Abi, eventName: "Transfer", data: l.data, topics: l.topics as [Hex, ...Hex[]] });
-      } catch {
-        return null;
-      }
-    })
-    .filter((e): e is NonNullable<typeof e> => e !== null);
+    .map(decode)
+    .filter((e): e is NonNullable<typeof e> => e !== null)
+    .map((e) => ({ from: e.args.from, to: e.args.to, units: e.args.value, native: false }));
+  if (erc20.length) return erc20;
+  return chain.logs
+    .filter((l) => l.address.toLowerCase() === SYSTEM_EMITTER)
+    .map(decode)
+    .filter((e): e is NonNullable<typeof e> => e !== null)
+    .filter((e) => e.args.value % 1_000_000_000_000n === 0n) // sub-micro-dollar dust is not a funding transfer
+    .map((e) => ({ from: e.args.from, to: e.args.to, units: e.args.value / 1_000_000_000_000n, native: true }));
 }
 
 const sumTo = (chain: ChainEvidence, to: Hex, from?: Hex) =>
-  usdcTransfers(chain)
-    .filter((e) => getAddress(e.args.to) === getAddress(to) && (!from || getAddress(e.args.from) === getAddress(from)))
-    .reduce((s, e) => s + e.args.value, 0n);
+  usdcMoves(chain)
+    .filter((e) => getAddress(e.to) === getAddress(to) && (!from || getAddress(e.from) === getAddress(from)))
+    .reduce((s, e) => s + e.units, 0n);
 
 /**
  * Funding arrives one of two ways:
@@ -143,6 +160,6 @@ export function verifyFunding(args: {
     fundingRef,
     witnessDigest: digestEvidence(transferRaw),
     mismatch: circleAmount !== o.amount,
-    chainFrom: usdcTransfers(chain).find((e) => getAddress(e.args.to) === dest)!.args.from,
+    chainFrom: usdcMoves(chain).find((e) => getAddress(e.to) === dest)!.from,
   };
 }

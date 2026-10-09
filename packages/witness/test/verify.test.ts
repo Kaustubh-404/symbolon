@@ -79,10 +79,21 @@ describe("verifyFunding", () => {
     expect(v).toMatchObject({ attest: false, retryable: false });
   });
 
-  it("ignores EIP-7708 system-emitter logs (they would double count)", () => {
+  it("accepts a NATIVE USDC payout (Circle Mint's real shape): system-emitter log, 18 decimals", () => {
     const t = transfer("5.00");
-    const v = verifyFunding({ obligation: ob(5_000_000n), vault: VAULT, transfer: t, transferRaw: raw(t), chain: chain([usdcLog(OMNIBUS, VAULT, 5_000_000n, SYSTEM_EMITTER)]), used: new Map() });
-    expect(v).toMatchObject({ attest: false });
+    const v = verifyFunding({ obligation: ob(5_000_000n), vault: VAULT, transfer: t, transferRaw: raw(t), chain: chain([usdcLog(OMNIBUS, VAULT, 5_000_000_000_000_000_000n, SYSTEM_EMITTER)]), used: new Map() });
+    expect(v).toMatchObject({ attest: true, observedAmount: 5_000_000n });
+  });
+
+  it("never double counts: with both an ERC-20 log and a system-emitter log, only the ERC-20 view counts", () => {
+    const t = transfer("5.00");
+    const c = chain([usdcLog(OMNIBUS, VAULT, 5_000_000n), usdcLog(OMNIBUS, VAULT, 5_000_000_000_000_000_000n, SYSTEM_EMITTER)]);
+    expect(verifyFunding({ obligation: ob(5_000_000n), vault: VAULT, transfer: t, transferRaw: raw(t), chain: c, used: new Map() })).toMatchObject({ attest: true, observedAmount: 5_000_000n });
+  });
+
+  it("ignores native dust that is not a whole micro-dollar", () => {
+    const t = transfer("5.00");
+    expect(verifyFunding({ obligation: ob(5_000_000n), vault: VAULT, transfer: t, transferRaw: raw(t), chain: chain([usdcLog(OMNIBUS, VAULT, 5_000_000n, SYSTEM_EMITTER)]), used: new Map() })).toMatchObject({ attest: false });
   });
 
   it("waits (retryable) while Circle has no tx hash or the tx is not on Arc yet", () => {

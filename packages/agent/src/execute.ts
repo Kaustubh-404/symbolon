@@ -104,6 +104,8 @@ export async function execute(cfg: ExecConfig, bill: Bill, d: DecisionInput): Pr
       data: encodeFunctionData({ abi: symbolonAbi, functionName: "commitDecision", args: [bill.obligationId, ACTION_CODE[d.action], h] }),
     });
     res.commitTx = c.hash;
+    // The contract requires the decision to be committed at least one block before release (DecisionSameBlock).
+    for (let i = 0; i < 60 && (await cfg.chain.pub.getBlockNumber({ cacheTime: 0 })) <= c.receipt.blockNumber; i++) await sleep(500);
   }
   if (d.action !== "pay") return res;
   if (d.payDate && d.payDate > cfg.today) return { ...res, note: `scheduled for ${d.payDate}` };
