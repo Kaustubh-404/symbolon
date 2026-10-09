@@ -12,6 +12,7 @@ fixtures = [
 	{"dt": "Mode of Payment", "filters": [["name", "=", "USDC (Arc)"]]},
 ]
 
+before_install = "symbolon_erpnext.install.before_install"
 after_install = "symbolon_erpnext.install.after_install"
 after_migrate = "symbolon_erpnext.install.after_migrate"
 
