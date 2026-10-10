@@ -4,58 +4,63 @@ import { explorerTx } from "@symbolon/sdk";
 import { PageHead, Section } from "@/components/Page";
 import { CHAIN_ID } from "@/lib/config";
 import { SCENARIOS, SEEDED } from "@/lib/breakit";
+import { ruleLabel } from "@/lib/rules";
+import { Card, Chip, Kicker } from "@/components/ui";
 import { BreakButton } from "./BreakButton";
 
-export const metadata: Metadata = { title: "Break it" };
+export const metadata: Metadata = { title: "Try to break it" };
 
 export default function BreakItPage() {
   return (
     <>
-      <PageHead kicker="Make it fail" title="Try to make the agent pay something it shouldn't">
+      <PageHead kicker="Try to break it" title="Seven ways to make it pay something it shouldn't">
         <p>
-          Each button below sends a <strong>real transaction</strong> to the Symbolon contract on Arc Testnet, signed with an
-          agent key, asking it to pay a bill it must not pay. Showing the refusal matters more than showing a success: it proves
-          the limit sits somewhere the agent cannot reach.
+          Each button sends a <strong className="text-ink">real transaction</strong> to the contract on Arc, signed with an AI agent&apos;s key, asking
+          it to pay a bill it must not pay. Watching it refuse is the point: the limit sits somewhere the AI can&apos;t reach.
         </p>
-        <p className="mt-2">
-          The bills are demo fixtures, frozen on-chain in one refusal state each by{" "}
-          <a href="https://github.com/Kaustubh-404/symbolon/blob/main/scripts/seed-break-it.sh">scripts/seed-break-it.sh</a>.
-          Their funding is real: a Circle Mint sandbox transfer (
-          <a href={explorerTx(CHAIN_ID, SEEDED.mintTx)}>Circle → treasury</a>, then{" "}
-          <a href={explorerTx(CHAIN_ID, SEEDED.fundingTx)}>treasury → vault</a>). Every press shows up on{" "}
-          <Link href="/refusals">/refusals</Link>.
+        <p>
+          The bills are demo bills, each frozen in one bad state. Their money is real test USDC from Circle (
+          <a href={explorerTx(CHAIN_ID, SEEDED.mintTx)}>Circle → treasury</a>, then <a href={explorerTx(CHAIN_ID, SEEDED.fundingTx)}>treasury → contract</a>
+          ). Every press shows up in <Link href="/refusals">the refusals log</Link>.
         </p>
       </PageHead>
 
-      <Section title="Seven ways to try" note="Rate-limited to one press every few seconds">
-        <ol className="grid gap-6 md:grid-cols-2">
-          {SCENARIOS.map((s, i) => (
-            <li key={s.key} className="border border-rule bg-paper-2 p-5">
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-ink-2">Attempt {i + 1}</p>
-              <h3 className="mt-1 font-serif text-xl leading-snug">{s.title}</h3>
-              <p className="mt-2 text-sm text-ink">{s.attack}</p>
-              <p className="mt-3 text-sm text-ink-2">
-                <span className="font-semibold text-ink">Expected refusal:</span> <span className="font-mono">{s.expect}</span>. {s.why}
+      <ol className="grid gap-5 md:grid-cols-2">
+        {SCENARIOS.map((s, i) => (
+          <Card as="li" key={s.key} className="flex flex-col">
+            <div className="flex items-center justify-between gap-3">
+              <Kicker>Attempt {i + 1}</Kicker>
+              <Chip tone="refused">Expect: {ruleLabel(s.expect)}</Chip>
+            </div>
+            <h2 className="mt-3 font-serif text-h2 leading-snug tracking-tight">{s.title}</h2>
+            <p className="mt-2 text-[0.9375rem] leading-relaxed">{s.attack}</p>
+            <details className="group mt-3 text-sm text-ink-2">
+              <summary className="cursor-pointer select-none list-none font-medium text-ink-2 hover:text-ink">
+                <span aria-hidden className="mr-1 inline-block transition group-open:rotate-90">›</span>
+                Why the contract says no
+              </summary>
+              <p className="mt-2 leading-relaxed">
+                {s.why} <span className="font-mono text-xs">({s.expect})</span>
               </p>
-              <BreakButton scenario={s.key} expect={s.expect} />
-            </li>
-          ))}
-        </ol>
-      </Section>
+            </details>
+            <BreakButton scenario={s.key} expect={s.expect} />
+          </Card>
+        ))}
+      </ol>
 
-      <Section title="What these buttons cannot do">
-        <ul className="list-disc space-y-1 pl-5 text-sm text-ink-2">
-          <li>
-            Move money. The server runs the contract&apos;s dry run (<span className="font-mono">check</span>) first and sends
-            nothing if the contract would accept the release.
+      <Section title="What these buttons can't do">
+        <ul className="grid gap-4 text-sm text-ink-2 md:grid-cols-3">
+          <li className="rounded-card border border-rule p-4">
+            <p className="font-semibold text-ink">Move money</p>
+            <p className="mt-1">The server asks the contract for a dry run first and sends nothing if it would accept the payment.</p>
           </li>
-          <li>
-            Use the real agent&apos;s key. They sign with a separate demo key that holds the AGENT role and about one test dollar of
-            gas.
+          <li className="rounded-card border border-rule p-4">
+            <p className="font-semibold text-ink">Use the real agent&apos;s key</p>
+            <p className="mt-1">They sign with a separate demo key that holds the agent role and about one test dollar for fees.</p>
           </li>
-          <li>
-            Prove the witness is independent of our team. It is independent of the agent; see &ldquo;What this does not prove&rdquo; in
-            the README.
+          <li className="rounded-card border border-rule p-4">
+            <p className="font-semibold text-ink">Prove the witness is independent of us</p>
+            <p className="mt-1">It&apos;s independent of the AI agent, not of our team. The README says so under &ldquo;What this does not prove&rdquo;.</p>
           </li>
         </ul>
       </Section>

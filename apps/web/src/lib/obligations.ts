@@ -1,10 +1,11 @@
+import { plainAction, ruleLabel } from "./rules";
 import type { Address, Hex } from "viem";
 import { decodeRefusal, type Refusal } from "@symbolon/sdk";
 import { getEvents, type ChainEvent } from "./logs";
 import { getRefusals, type MinedRefusal } from "./refusals";
 import { blockTimestamps, dryRun, getObligations, type OnchainObligation } from "./reads";
 import { attempt, EXPLORER_ERROR, fail, ok, RPC_ERROR, type Loaded } from "./loaded";
-import { actionName, isZeroHash, usdc, utc } from "./format";
+import { isZeroHash, usd, utc } from "./format";
 
 export type ObligationRow = {
   id: Hex;
@@ -82,21 +83,21 @@ function eventItem(e: ChainEvent): Omit<TimelineItem, "timestamp"> | null {
   const base = { key: `${e.txHash}:${e.logIndex}`, blockNumber: e.blockNumber, order: e.logIndex, txHash: e.txHash };
   switch (e.name) {
     case "PayeeSet":
-      return { ...base, title: "Payee wallet set", who: "approver", tone: "human", lines: [`wallet ${a.wallet as string}`, `cooldown ends ${utc(a.cooldownEnds as bigint)}`] };
+      return { ...base, title: "Supplier's wallet put on file", who: "a person (approver)", tone: "human", lines: [`wallet ${a.wallet as string}`, `can first be paid ${utc(a.cooldownEnds as bigint)} (new-wallet waiting period)`] };
     case "ObligationRegistered":
-      return { ...base, title: "Bill registered — the document half", who: "approver", tone: "human", lines: [`${usdc(a.amount as bigint)} USDC to ${a.payee as string}`, `window ${utc(a.notBefore as bigint)} → ${utc(a.dueBy as bigint)}`, `docHash ${a.docHash as string}`] };
+      return { ...base, title: "Bill approved and written on-chain", who: "a person (approver), via ERPNext", tone: "human", lines: [`${usd(a.amount as bigint)} to ${a.payee as string}`, `payable ${utc(a.notBefore as bigint)} → ${utc(a.dueBy as bigint)}`, `document fingerprint ${a.docHash as string}`] };
     case "WitnessAttested":
-      return { ...base, title: "Funding witnessed — the witness half", who: "witness", tone: "neutral", lines: [`${usdc(a.amount as bigint)} USDC reserved`, `fundingRef ${a.fundingRef as string}`, `witnessDigest ${a.witnessDigest as string}`] };
+      return { ...base, title: "Money confirmed by the witness", who: "witness", tone: "neutral", lines: [`${usd(a.amount as bigint)} confirmed for this bill`, `funding transaction ${a.fundingRef as string}`, `evidence fingerprint ${a.witnessDigest as string}`] };
     case "DecisionCommitted":
-      return { ...base, title: `Decision committed: ${actionName(Number(a.action))}`, who: "agent", tone: "neutral", lines: [`decisionHash ${a.decisionHash as string}`, "release is allowed only in a later block"] };
+      return { ...base, title: `AI decided: ${plainAction(Number(a.action))}`, who: "AI agent", tone: "neutral", lines: [`decision fingerprint ${a.decisionHash as string}`, "recorded before any money moves; payment only allowed in a later block"] };
     case "Cosigned":
-      return { ...base, title: "Co-signed", who: "cosigner", tone: "human", lines: [`by ${a.cosigner as string}`] };
+      return { ...base, title: "Second signature added", who: "a person (co-signer)", tone: "human", lines: [`by ${a.cosigner as string}`] };
     case "Released":
-      return { ...base, title: "Released — the halves fit", who: "agent", tone: "released", lines: [`${usdc(a.amount as bigint)} USDC paid to ${a.payee as string}`] };
+      return { ...base, title: "Paid — the halves fit", who: "AI agent, checked by the contract", tone: "released", lines: [`${usd(a.amount as bigint)} paid to ${a.payee as string}`] };
     case "Cancelled":
-      return { ...base, title: "Cancelled", who: "approver", tone: "human", lines: ["reservation freed"] };
+      return { ...base, title: "Cancelled by a person", who: "a person (approver)", tone: "human", lines: ["the money set aside for it was freed"] };
     case "Expired":
-      return { ...base, title: "Expired", who: "anyone", tone: "neutral", lines: ["past dueBy + grace; reservation freed"] };
+      return { ...base, title: "Expired", who: "anyone", tone: "neutral", lines: ["its pay window closed; the money set aside for it was freed"] };
     default:
       return null;
   }
@@ -108,8 +109,8 @@ function refusalItem(r: MinedRefusal): Omit<TimelineItem, "timestamp"> {
     blockNumber: r.blockNumber,
     order: Number.MAX_SAFE_INTEGER, // a reverted tx emits no logs; within its block, show it after the events
     txHash: r.hash,
-    title: `Refused on-chain: ${r.name}`,
-    who: r.method ?? "call",
+    title: `Refused: ${ruleLabel(r.name)}`,
+    who: r.method === "release" ? "payment attempt" : (r.method ?? "call"),
     tone: "refused",
     lines: [r.human],
   };

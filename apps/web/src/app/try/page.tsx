@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PageHead, Section } from "@/components/Page";
+import { PageHead } from "@/components/Page";
 import { TryForm } from "./TryForm";
 
 export const metadata: Metadata = { title: "Try it yourself" };
@@ -8,19 +8,16 @@ export const metadata: Metadata = { title: "Try it yourself" };
 export default function TryPage() {
   return (
     <>
-      <PageHead kicker="Try it yourself" title="Send a bill through the real pipeline">
+      <PageHead kicker="Try it yourself" title="Send a bill and watch it get paid, or refused">
         <p>
-          Your bill is created in our company&apos;s ERPNext, exactly as an accountant would create it. ERPNext registers it on Arc, the agent
-          (Claude) decides whether to pay it, Circle Mint funds it, an independent witness confirms the money arrived, and the contract either pays
-          it or refuses. Every step is a real transaction you can open on the explorer.
+          Your bill goes into our company&apos;s real accounting software, exactly as an accountant would enter it. Then the AI decides, Circle sends
+          the money, an independent witness confirms it, and the contract pays or refuses. Every step is a real transaction you can open.
         </p>
-        <p className="mt-2">
-          Want to see it refuse instead? Try to trick it in the note, or press the buttons on <Link href="/break-it">/break-it</Link>.
+        <p>
+          Prefer to see it refuse? Try to trick it in the supplier&apos;s note, or <Link href="/break-it">try to break it</Link>.
         </p>
       </PageHead>
-      <Section title="Your bill">
-        <TryForm />
-      </Section>
+      <TryForm />
     </>
   );
 }

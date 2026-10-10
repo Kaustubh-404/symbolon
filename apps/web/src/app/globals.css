@@ -1,32 +1,58 @@
 @import "tailwindcss";
 
-/* Ledger palette: paper and ink, one accent for "released", one for "refused". */
+/*
+ * Symbolon design tokens — "Ledger & Seal". The ONLY place raw colour, type, radius, spacing and timing values live.
+ * Colour roles: paper surfaces, ink text at three strengths, hairlines, ONE accent (seal vermilion = refused), and
+ * state colours used only for state (paid / waiting / app error). A bug (grey) never looks like a refusal (vermilion).
+ */
 :root {
-  --paper: #f4efe4;
-  --paper-2: #ece5d5;
-  --paper-3: #e2d9c4;
-  --ink: #1c1a15;
-  --ink-2: #4f493c;
-  --rule: #cdc2aa;
-  --released: #1d6a43;
-  --released-bg: #dcebdc;
-  --refused: #a3301c;
-  --refused-bg: #f3dcd3;
+  /* surfaces */
+  --paper: #f5f1e8; /* base */
+  --paper-2: #eee8db; /* sunken / panels */
+  --paper-3: #e5ddcb; /* hover, pressed */
+  --raised: #fbf9f4; /* cards */
+  /* text */
+  --ink: #1a1813; /* 100% */
+  --ink-2: #5b5548; /* ~60%: secondary */
+  --ink-3: #6f6859; /* ~40% role, still AA on paper */
+  /* lines */
+  --rule: #d8cfbb; /* hairline */
+  --rule-strong: #1a1813;
+  /* state */
+  --released: #1c6a44; /* paid */
+  --released-bg: #e0eee2;
+  --refused: #b3321a; /* seal vermilion: refusals only */
+  --refused-bg: #f7e3db;
+  --wait: #8a5a00; /* waiting, needs a human */
+  --wait-bg: #f5ead1;
+  --fault: #5f5f5f; /* app / network error: neutral */
+  --fault-bg: #ececea;
+  --focus: #1f5fbf;
+  --shadow: 0 1px 0 rgb(26 24 19 / 0.04), 0 8px 24px -12px rgb(26 24 19 / 0.18);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #15140f;
-    --paper-2: #1d1b15;
-    --paper-3: #26231b;
-    --ink: #ece5d3;
-    --ink-2: #b0a790;
-    --rule: #3b372c;
-    --released: #6fcf98;
-    --released-bg: #17301f;
-    --refused: #f2876f;
-    --refused-bg: #3a1d16;
+    --paper: #14130f;
+    --paper-2: #1b1a15;
+    --paper-3: #26241d;
+    --raised: #1f1d18;
+    --ink: #eee8d8;
+    --ink-2: #b6ad97;
+    --ink-3: #9a917c;
+    --rule: #39352b;
+    --rule-strong: #eee8d8;
+    --released: #72d29c;
+    --released-bg: #16301f;
+    --refused: #ff8a6e;
+    --refused-bg: #3b1c15;
+    --wait: #f0c25c;
+    --wait-bg: #33280f;
+    --fault: #b9b9b5;
+    --fault-bg: #2a2a28;
+    --focus: #7fb0ff;
+    --shadow: 0 1px 0 rgb(0 0 0 / 0.3), 0 10px 28px -12px rgb(0 0 0 / 0.6);
     color-scheme: dark;
   }
 }
@@ -35,53 +61,87 @@
   --color-paper: var(--paper);
   --color-paper-2: var(--paper-2);
   --color-paper-3: var(--paper-3);
+  --color-raised: var(--raised);
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
   --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
   --color-released: var(--released);
   --color-released-bg: var(--released-bg);
   --color-refused: var(--refused);
   --color-refused-bg: var(--refused-bg);
+  --color-wait: var(--wait);
+  --color-wait-bg: var(--wait-bg);
+  --color-fault: var(--fault);
+  --color-fault-bg: var(--fault-bg);
   --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
   --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* radius */
+  --radius-card: 16px;
+  --radius-input: 10px;
+  --radius-chip: 6px;
+  /* fluid type */
+  --text-hero: clamp(2.6rem, 1.6rem + 4.2vw, 4.75rem);
+  --text-hero--line-height: 1.02;
+  --text-display: clamp(2.25rem, 1.4rem + 3.4vw, 3.75rem);
+  --text-display--line-height: 1.04;
+  --text-h1: clamp(1.75rem, 1.35rem + 1.6vw, 2.5rem);
+  --text-h1--line-height: 1.12;
+  --text-h2: clamp(1.3rem, 1.15rem + 0.6vw, 1.6rem);
+  --text-h2--line-height: 1.2;
+  --text-kicker: 0.6875rem;
+  /* motion */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --shadow-card: var(--shadow);
+}
+
+:root {
+  --dur-micro: 180ms;
+  --dur-ui: 600ms;
+  --dur-hero: 1200ms;
 }
 
 html {
   background: var(--paper);
   color: var(--ink);
   -webkit-text-size-adjust: 100%;
+  scroll-padding-top: 5rem;
 }
 
 body {
   background: var(--paper);
   font-family: var(--font-sans);
-  /* faint ledger ruling */
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 31px,
-    color-mix(in srgb, var(--rule) 22%, transparent) 31px,
-    color-mix(in srgb, var(--rule) 22%, transparent) 32px
-  );
+  font-feature-settings: "ss01";
+  text-rendering: optimizeLegibility;
 }
 
 @layer base {
-  /* Preflight strips underlines; links in prose keep one. Utilities (no-underline) still win. */
   a {
     text-decoration-line: underline;
     text-underline-offset: 3px;
     text-decoration-thickness: 1px;
-    text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+    text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+    transition: text-decoration-color var(--dur-micro) var(--ease-out);
   }
   a:hover {
     text-decoration-color: currentColor;
   }
+  ::selection {
+    background: color-mix(in srgb, var(--refused) 22%, transparent);
+  }
 }
 
 :focus-visible {
-  outline: 2px solid var(--ink);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.num,
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Ledger tables */
@@ -99,18 +159,24 @@ body {
 .ledger th {
   text-align: left;
   font-weight: 600;
-  font-size: 0.6875rem;
+  font-size: var(--text-kicker);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-2);
-  border-bottom: 2px solid var(--ink);
-  padding: 0.5rem 0.75rem 0.4rem 0;
+  border-bottom: 1px solid var(--rule-strong);
+  padding: 0.6rem 1rem 0.5rem 0;
   white-space: nowrap;
 }
 .ledger td {
   border-bottom: 1px solid var(--rule);
-  padding: 0.6rem 0.75rem 0.6rem 0;
+  padding: 0.75rem 1rem 0.75rem 0;
   vertical-align: top;
+}
+.ledger tbody tr {
+  transition: background-color var(--dur-micro) var(--ease-out);
+}
+.ledger tbody tr:hover {
+  background: color-mix(in srgb, var(--paper-2) 70%, transparent);
 }
 .ledger td.num,
 .ledger th.num {
@@ -132,5 +198,88 @@ body {
   .half-right {
     margin-left: -22px;
     clip-path: polygon(22px 0, 100% 0, 100% 100%, 22px 100%, 0 90%, 22px 80%, 0 66%, 22px 52%, 0 38%, 22px 25%, 0 12%);
+  }
+}
+
+/* ── The seal: the one signature moment. Stamps in once. ───────────────────────────── */
+@keyframes seal-stamp {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--seal-tilt, -3deg)) scale(1.35);
+  }
+  60% {
+    opacity: 1;
+    transform: rotate(var(--seal-tilt, -3deg)) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(var(--seal-tilt, -3deg)) scale(1);
+  }
+}
+.seal {
+  transform: rotate(var(--seal-tilt, -3deg));
+}
+.seal-animate {
+  animation: seal-stamp var(--dur-ui) var(--ease-out) both;
+}
+
+/* live step pulse */
+@keyframes step-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ink) 35%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--ink) 0%, transparent);
+  }
+}
+.step-live {
+  animation: step-pulse 1.4s var(--ease-out) infinite;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise-in {
+  animation: rise-in var(--dur-ui) var(--ease-out) both;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--paper-2) 0%, var(--paper-3) 50%, var(--paper-2) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+  border-radius: var(--radius-chip);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+  .seal-animate {
+    animation: none;
+    opacity: 1;
+  }
+  .step-live,
+  .skeleton {
+    animation: none;
   }
 }

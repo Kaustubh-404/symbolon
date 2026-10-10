@@ -39,3 +39,17 @@ export const isZeroHash = (h: string) => /^0x0*$/.test(h);
 export function jsonSafe<T>(value: T): unknown {
   return JSON.parse(JSON.stringify(value, (_k, v) => (typeof v === "bigint" ? v.toString() : v)));
 }
+
+/** Display dollars for people: "$5.35", "$0.10", "$1,250"; sub-cent amounts keep their digits ("$0.0042"). */
+export function usd(amount: bigint): string {
+  const [whole = "0", frac = ""] = formatUnits(amount, USDC_DECIMALS).split(".");
+  const grouped = BigInt(whole).toLocaleString("en-US");
+  const f = frac.replace(/0+$/, "");
+  if (!f) return `$${grouped}`;
+  return `$${grouped}.${f.length <= 2 ? f.padEnd(2, "0") : f}`;
+}
+
+/** "2026-10-04 13:24 UTC" from an ISO string (keeps sentences readable). */
+export function isoToUtc(iso: string): string {
+  return `${iso.slice(0, 16).replace("T", " ")} UTC`;
+}

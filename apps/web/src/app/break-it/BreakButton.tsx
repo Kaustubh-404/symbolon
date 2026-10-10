@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { ruleLabel, shortenInText } from "@/lib/rules";
+import { Banner, Button, Proof, Seal } from "@/components/ui";
 
 type Result = {
   tx?: string;
@@ -31,30 +33,29 @@ export function BreakButton({ scenario, expect }: { scenario: string; expect: st
   }
 
   return (
-    <div className="mt-4">
-      <button
-        type="button"
-        onClick={go}
-        disabled={busy}
-        className="border border-ink bg-ink px-4 py-2 text-sm font-semibold text-paper transition hover:bg-refused disabled:cursor-wait disabled:opacity-60"
-      >
-        {busy ? "Sending to Arc…" : "Try it — send the transaction"}
-      </button>
-      <div aria-live="polite" className="mt-3 text-sm">
-        {r?.error ? <p className="text-ink-2">{r.error}</p> : null}
+    <div className="mt-auto pt-5">
+      <Button variant={r?.tx ? "ghost" : "primary"} loading={busy} onClick={go} className="w-full sm:w-auto">
+        {busy ? "Sending to Arc…" : r?.tx ? "Try again" : "Try it — send the transaction"}
+      </Button>
+      <div aria-live="polite">
+        {r?.error ? (
+          <div className="mt-4">
+            <Banner tone={r.error.startsWith("rate limited") ? "info" : "fault"} title={r.error.startsWith("rate limited") ? "One moment." : "That didn't go through."}>
+              {r.error}
+            </Banner>
+          </div>
+        ) : null}
         {r?.tx ? (
-          <div className="border-l-4 border-refused bg-refused-bg p-3">
-            <p className="font-semibold text-refused">
-              Refused on-chain: <span className="font-mono">{r.refusal}</span>
-              {r.matchedExpectation ? "" : ` (expected ${expect})`}
-            </p>
-            <p className="mt-1 text-ink">{r.explanation}</p>
-            <p className="mt-2 text-xs text-ink-2">
-              Mined in block <span className="font-mono">{r.block}</span> with status <span className="font-mono">{r.status}</span>.{" "}
-              <a href={r.txUrl} target="_blank" rel="noreferrer">
-                See it on the explorer ↗
-              </a>
-            </p>
+          <div className="mt-5 rounded-[12px] border border-refused/30 bg-refused-bg p-4">
+            <Seal kind="refused" size="sm" animate rule={`Rule: ${ruleLabel(r.refusal ?? expect)}`} note="No money moved." />
+            <p className="mt-3 text-sm text-ink" title={r.explanation}>{shortenInText(r.explanation ?? "")}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-2">
+              <Proof href={r.txUrl!}>See the refused transaction</Proof>
+              <span>
+                block <span className="font-mono tabular-nums">{r.block}</span> · <span className="font-mono">{r.refusal}</span>
+                {r.matchedExpectation ? "" : ` (expected ${expect})`}
+              </span>
+            </div>
           </div>
         ) : null}
       </div>

@@ -1,39 +1,41 @@
 import type { Metadata } from "next";
 import { explorerAddress } from "@symbolon/sdk";
 import { CHAIN_ID, CONTRACT_URL, DEPLOYMENT, GITHUB_URL, SOURCE_URL, SYMBOLON, USDC } from "@/lib/config";
-import { duration, usdc } from "@/lib/format";
+import { duration, usd } from "@/lib/format";
 import { getParams, ROLE_HOLDERS, ROLES } from "@/lib/reads";
 import { Hash } from "@/components/Hash";
 import { Val } from "@/components/Val";
 import { PageHead, Section } from "@/components/Page";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Contracts" };
+export const metadata: Metadata = { title: "How it's wired" };
 
 export default async function ContractsPage() {
   const p = await getParams();
 
-  const params: Array<{ name: string; node: React.ReactNode; meaning: string }> = [
-    { name: "cosignThreshold", node: <Val l={p.cosignThreshold}>{(v) => `${usdc(v)} USDC`}</Val>, meaning: "Above this, a human cosigner must sign (NeedsCosign)." },
-    { name: "periodCap", node: <Val l={p.periodCap}>{(v) => `${usdc(v)} USDC`}</Val>, meaning: "Most the agent can release per period (OverPeriodCap)." },
-    { name: "periodLength", node: <Val l={p.periodLength}>{duration}</Val>, meaning: "Length of the budget period." },
-    { name: "spentInPeriod(now)", node: <Val l={p.spentInPeriod}>{(v) => `${usdc(v)} USDC`}</Val>, meaning: "Released so far in the current period." },
-    { name: "payeeCooldown", node: <Val l={p.payeeCooldown}>{duration}</Val>, meaning: "After a payee's wallet changes, payments wait this long (PayeeChangedRecently)." },
-    { name: "grace", node: <Val l={p.grace}>{duration}</Val>, meaning: "After dueBy + grace a bill can no longer be paid (PastDue) and anyone may expire it." },
-    { name: "paused", node: <Val l={p.paused}>{(v) => (v ? <span className="text-refused">paused</span> : "no")}</Val>, meaning: "A guardian can pause; only the admin can unpause." },
-    { name: "mintDeposit", node: <Val l={p.mintDeposit}>{(v) => <Hash value={v} href={explorerAddress(CHAIN_ID, v)} />}</Val>, meaning: "The only address surplus may ever be redeemed to (Circle Mint deposit)." },
+  const dur = (v: bigint) => duration(v).split(" (")[0];
+  const params: Array<{ label: string; name: string; node: React.ReactNode; meaning: string }> = [
+    { label: "Second signature above", name: "cosignThreshold", node: <Val l={p.cosignThreshold}>{usd}</Val>, meaning: "Bills above this need a person's second signature (NeedsCosign)." },
+    { label: "Spending limit", name: "periodCap", node: <Val l={p.periodCap}>{usd}</Val>, meaning: "The most the AI can pay out per period (OverPeriodCap)." },
+    { label: "Limit resets every", name: "periodLength", node: <Val l={p.periodLength}>{dur}</Val>, meaning: "Length of the spending-limit period." },
+    { label: "Paid so far this period", name: "spentInPeriod", node: <Val l={p.spentInPeriod}>{usd}</Val>, meaning: "Counts against the spending limit." },
+    { label: "New-wallet waiting period", name: "payeeCooldown", node: <Val l={p.payeeCooldown}>{dur}</Val>, meaning: "After a supplier's wallet changes, payments to it wait this long (PayeeChangedRecently)." },
+    { label: "Grace after the due date", name: "grace", node: <Val l={p.grace}>{dur}</Val>, meaning: "After due date + grace a bill can't be paid (PastDue), and anyone may close it." },
+    { label: "Payments paused", name: "paused", node: <Val l={p.paused}>{(v) => (v ? <span className="text-refused">Yes</span> : "No")}</Val>, meaning: "A guardian can pause; only the admin can restart." },
+    { label: "Spare cash can only go to", name: "mintDeposit", node: <Val l={p.mintDeposit}>{(v) => <Hash value={v} href={explorerAddress(CHAIN_ID, v)} keep={4} />}</Val>, meaning: "Circle Mint, to be turned back into dollars. Nowhere else." },
   ];
 
   return (
     <>
-      <PageHead kicker="Arc Testnet · chain 5042002" title="Contracts and roles">
-        Addresses come from the deployment record in the SDK; every parameter and role flag below is read from the
-        contract now. Source is <a href={SOURCE_URL}>verified on Arcscan</a> and in{" "}
-        <a href={`${GITHUB_URL}/blob/main/contracts/src/Symbolon.sol`}>contracts/src/Symbolon.sol</a>.
+      <PageHead kicker="How it's wired · Arc Testnet" title="Who can do what, and the limits the AI can't change">
+        <p>
+          Every limit and every key below is read from the contract right now. The source code is{" "}
+          <a href={SOURCE_URL}>verified on Arcscan</a> and on <a href={`${GITHUB_URL}/blob/main/contracts/src/Symbolon.sol`}>GitHub</a>.
+        </p>
       </PageHead>
 
       <Section title="Addresses" id="addresses">
-        <div className="table-wrap">
+        <div className="table-wrap rounded-card border border-rule bg-raised px-4 shadow-card sm:px-6">
           <table className="ledger">
             <thead>
               <tr>
@@ -63,8 +65,8 @@ export default async function ContractsPage() {
         </div>
       </Section>
 
-      <Section title="Roles, checked on-chain" id="roles" note="✓ = hasRole(role, address) is true right now">
-        <div className="table-wrap">
+      <Section title="The keys, checked on-chain" id="roles" note="✓ means the contract confirms this key holds this role now">
+        <div className="table-wrap rounded-card border border-rule bg-raised px-4 shadow-card sm:px-6">
           <table className="ledger">
             <thead>
               <tr>
@@ -104,7 +106,7 @@ export default async function ContractsPage() {
         <p className="mt-2 text-xs text-ink-2">&ldquo;?&rdquo; means the read failed (RPC error), not that the role is absent.</p>
       </Section>
 
-      <Section title="Separation of duties" id="sod">
+      <Section title="Why the AI can't overrule" id="sod">
         <div className="grid gap-6 text-[0.9375rem] leading-relaxed md:grid-cols-2">
           <p>
             The agent decides <em>whether, when and how</em> to pay. It cannot decide <em>what</em> is owed or{" "}
@@ -113,29 +115,32 @@ export default async function ContractsPage() {
             approver, witness, cosigner or admin, and refuses to grant those roles to the agent&apos;s address
             (<code className="font-mono">RoleConflict</code>). This is enforced in code, not by convention.
           </p>
-          <p className="text-ink-2">
-            Caveat, stated plainly: on testnet all six keys are held by the team. Separation of duties is enforced
+          <p className="rounded-card border border-wait/40 bg-wait-bg p-4 text-ink-2">
+            <strong className="text-ink">Stated plainly:</strong> on testnet all six keys are held by the team. Separation of duties is enforced
             on-chain between <em>keys</em>, not yet between people. The witness reads Circle&apos;s ledger, but Circle
             does not sign that response.
           </p>
         </div>
       </Section>
 
-      <Section title="Parameters" id="params" note="read live">
-        <div className="table-wrap">
+      <Section title="The limits" id="params" note="read live from the contract">
+        <div className="table-wrap rounded-card border border-rule bg-raised px-4 shadow-card sm:px-6">
           <table className="ledger">
             <thead>
               <tr>
-                <th scope="col">Parameter</th>
-                <th scope="col">Value</th>
+                <th scope="col">Limit</th>
+                <th scope="col">Now</th>
                 <th scope="col">What it does</th>
               </tr>
             </thead>
             <tbody>
               {params.map((r) => (
                 <tr key={r.name}>
-                  <th scope="row" className="font-mono text-xs font-medium">{r.name}</th>
-                  <td className="whitespace-nowrap font-mono">{r.node}</td>
+                  <th scope="row" className="font-medium">
+                    {r.label}
+                    <span className="mt-0.5 block font-mono text-[0.6875rem] font-normal text-ink-2">{r.name}</span>
+                  </th>
+                  <td className="whitespace-nowrap font-mono tabular-nums">{r.node}</td>
                   <td className="text-ink-2">{r.meaning}</td>
                 </tr>
               ))}
