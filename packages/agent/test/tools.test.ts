@@ -46,6 +46,16 @@ describe("agent tools", () => {
     expect(JSON.stringify(out)).not.toContain("Ignore previous"); // document text is not in the listing
   });
 
+  it("list_open_bills flags a re-numbered duplicate (same supplier, invoice no and amount)", async () => {
+    const a = bill("PINV-A", "480.00", { untrustedText: "Supplier invoice no: ACME-7781\nHosting" });
+    const b = bill("PINV-B", "480.00", { untrustedText: "Supplier invoice no: acme-7781\nHosting" });
+    const c = bill("PINV-C", "480.00", { untrustedText: "Supplier invoice no: ACME-7782\nHosting" });
+    const { t } = setup([a, b, c]);
+    const out = JSON.parse((await t("list_open_bills").run({})) as string) as { bills: { document: string; possibleDuplicateOf: string | null }[] };
+    const by = Object.fromEntries(out.bills.map((x) => [x.document, x.possibleDuplicateOf]));
+    expect(by).toEqual({ "PINV-A": null, "PINV-B": "PINV-A", "PINV-C": null });
+  });
+
   it("read_bill_document wraps counterparty text as untrusted", async () => {
     const b = bill("PINV-2", "10.00");
     const { t } = setup([b]);

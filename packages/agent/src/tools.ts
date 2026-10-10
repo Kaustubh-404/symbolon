@@ -56,6 +56,22 @@ export function makeTools(ctx: ToolContext) {
     return b;
   };
 
+  // The control that already exists in every AP department: the same supplier invoice number from the same supplier,
+  // for the same amount, is a probable duplicate. Computed in code and handed to the model as a fact.
+  const invoiceNo = (b: Bill) => /Supplier invoice no:\s*(\S+)/i.exec(b.untrustedText)?.[1]?.toUpperCase() ?? null;
+  const dupOf = new Map<string, string>();
+  {
+    const seen = new Map<string, Bill>();
+    for (const b of [...ctx.bills].sort((x, y) => x.name.localeCompare(y.name))) {
+      const no = invoiceNo(b);
+      if (!no) continue;
+      const key = `${b.party}|${no}|${b.amountUsd}`;
+      const first = seen.get(key);
+      if (first) dupOf.set(b.obligationId.toLowerCase(), first.name);
+      else seen.set(key, b);
+    }
+  }
+
   const listOpenBills = betaZodTool({
     name: "list_open_bills",
     description:
@@ -84,6 +100,8 @@ export function makeTools(ctx: ToolContext) {
             dueDate: b.dueDate,
             daysUntilDue: daysBetween(ctx.today, b.dueDate),
             earlyPaymentDiscount: disc,
+            supplierInvoiceNo: invoiceNo(b),
+            possibleDuplicateOf: dupOf.get(b.obligationId.toLowerCase()) ?? null,
             onChain: {
               status: STATUS[o.status] ?? `unknown(${o.status})`,
               registeredAmountUsd: o.status === 0 ? null : unitsToUsd(o.amount),
