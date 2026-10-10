@@ -1,4 +1,5 @@
-import { encodeErrorResult, type Hex } from "viem";
+import { BaseError, encodeErrorResult, toFunctionSelector, type AbiFunction, type Hex } from "viem";
+import { client } from "./client";
 import { decodeRefusal, symbolonAbi } from "@symbolon/sdk";
 import { EXPLORER_API, SNAPSHOT_TTL_MS, SYMBOLON } from "./config";
 import { memo } from "./memo";
@@ -20,10 +21,19 @@ export type MinedRefusal = {
   human: string;
   args: readonly unknown[];
   /** where the decoding came from */
-  decodedFrom: "revert data" | "explorer decoding" | "none";
+  decodedFrom: "revert data" | "explorer decoding" | "replay" | "none";
 };
 
-export type RefusalIndex = { refusals: MinedRefusal[]; scannedTxs: number; truncated: boolean };
+/**
+ * `refusals`: reverted calls to Symbolon's own functions (the contract saying no).
+ * `otherReverted`: reverted transactions to the contract address that are not calls to its functions, e.g. Circle
+ * Mint trying to send native USDC to a contract with no payable receive(). Counted, never presented as refusals.
+ */
+export type RefusalIndex = { refusals: MinedRefusal[]; otherReverted: number; scannedTxs: number; truncated: boolean };
+
+const SELECTORS = new Set(
+  (symbolonAbi as readonly { type: string }[]).filter((x) => x.type === "function").map((f) => toFunctionSelector(f as AbiFunction).toLowerCase()),
+);
 
 type BsParam = { name?: string; type?: string; value?: unknown };
 type BsTx = {
@@ -35,6 +45,7 @@ type BsTx = {
   status?: string | null;
   result?: string | null;
   from?: { hash?: string } | null;
+  raw_input?: string | null;
   revert_reason?: unknown;
   decoded_input?: { parameters?: BsParam[] } | null;
 };
@@ -120,8 +131,33 @@ function classify(tx: BsTx): MinedRefusal {
 
 const isReverted = (tx: BsTx) => tx.status === "error" || (typeof tx.result === "string" && tx.result !== "success" && tx.result !== "pending");
 
+/**
+ * The explorer sometimes returns no revert data for a reverted tx. Replay the exact call (same sender, same input) at
+ * the parent block and read the revert data the contract returns. Results are cached per tx hash: they never change.
+ */
+const replayCache = new Map<string, { name: string; human: string; args: readonly unknown[] } | null>();
+async function replay(tx: BsTx) {
+  if (replayCache.has(tx.hash)) return replayCache.get(tx.hash)!;
+  let out: { name: string; human: string; args: readonly unknown[] } | null = null;
+  const block = BigInt(tx.block_number ?? tx.block ?? 0);
+  if (tx.raw_input && tx.from?.hash && block > 0n) {
+    try {
+      await client.call({ account: tx.from.hash as Hex, to: SYMBOLON, data: tx.raw_input as Hex, blockNumber: block - 1n, gas: 300_000n });
+    } catch (e) {
+      const data = e instanceof BaseError ? (e.walk((x) => typeof (x as { data?: unknown }).data === "string") as { data?: Hex } | null)?.data : undefined;
+      if (data && data !== "0x") out = decodeRefusal(data);
+    }
+  }
+  replayCache.set(tx.hash, out);
+  return out;
+}
+
+const isSymbolonCall = (tx: BsTx) =>
+  typeof tx.raw_input === "string" && tx.raw_input.length >= 10 && SELECTORS.has(tx.raw_input.slice(0, 10).toLowerCase());
+
 async function scan(): Promise<RefusalIndex> {
   const refusals: MinedRefusal[] = [];
+  let otherReverted = 0;
   let scannedTxs = 0;
   let params: BsPage["next_page_params"] = null;
   let pages = 0;
@@ -129,13 +165,25 @@ async function scan(): Promise<RefusalIndex> {
     const page = await fetchPage(params);
     const items = page.items ?? [];
     scannedTxs += items.length;
-    for (const tx of items) if (isReverted(tx)) refusals.push(classify(tx));
+    for (const tx of items) {
+      if (!isReverted(tx)) continue;
+      if (!isSymbolonCall(tx)) {
+        otherReverted++;
+        continue;
+      }
+      const r = classify(tx);
+      if (r.decodedFrom === "none") {
+        const rep = await replay(tx);
+        if (rep) Object.assign(r, rep, { decodedFrom: "replay" as const });
+      }
+      refusals.push(r);
+    }
     params = page.next_page_params ?? null;
     pages++;
   } while (params && pages < MAX_PAGES);
   // newest first, by block number (never timestamp)
   refusals.sort((a, b) => (a.blockNumber === b.blockNumber ? 0 : a.blockNumber > b.blockNumber ? -1 : 1));
-  return { refusals, scannedTxs, truncated: Boolean(params) };
+  return { refusals, otherReverted, scannedTxs, truncated: Boolean(params) };
 }
 
 export function getRefusals() {
